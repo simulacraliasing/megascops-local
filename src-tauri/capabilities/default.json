@@ -1,0 +1,46 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:default",
+    "fs:default",
+    "fs:allow-appconfig-read-recursive",
+    "fs:allow-appconfig-write-recursive",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/organize",
+          "args": [
+            "--result",
+            {
+              "validator": "\\S+"
+            },
+            "--mode",
+            {
+              "validator": "^(default|guess|undo)$"
+            },
+            "--log-level",
+            {
+              "validator": "^(ERROR|WARNING|INFO|DEBUG)$"
+            },
+            "--log-file",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "sidecar": true
+        }
+      ]
+    },
+    "shell:allow-open",
+    "log:default",
+    "store:default"
+  ]
+}

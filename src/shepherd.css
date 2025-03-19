@@ -1,0 +1,158 @@
+.shepherd-shadcn-theme {
+    /* Base styles */
+    --shepherd-bg: hsl(var(--card));
+    --shepherd-text: hsl(var(--card-foreground));
+    --shepherd-border: hsl(var(--border));
+    --shepherd-primary: hsl(var(--primary));
+    --shepherd-primary-text: hsl(var(--primary-foreground));
+    --shepherd-secondary: hsl(var(--secondary));
+    --shepherd-secondary-text: hsl(var(--secondary-foreground));
+    --shepherd-radius: var(--radius);
+    --shepherd-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.1),
+        0 2px 4px -2px rgba(0, 0, 0, 0.05);
+
+    /* Apply base styles */
+    font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    border-radius: var(--shepherd-radius);
+    box-shadow: var(--shepherd-shadow);
+    background: var(--shepherd-bg);
+    color: var(--shepherd-text);
+    max-width: 400px;
+    z-index: 9999;
+    border: 1px solid var(--shepherd-border);
+}
+
+/* Header */
+.shepherd-shadcn-theme .shepherd-header {
+    padding: 1rem 1rem 0;
+    background: transparent;
+}
+
+.shepherd-shadcn-theme .shepherd-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--shepherd-text);
+}
+
+.shepherd-shadcn-theme .shepherd-cancel-icon {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.75;
+    transition: opacity 150ms;
+    padding: 0.25rem;
+    border-radius: var(--shepherd-radius);
+}
+
+.shepherd-shadcn-theme .shepherd-cancel-icon:hover {
+    opacity: 1;
+    background: hsl(var(--secondary));
+}
+
+/* Content */
+.shepherd-shadcn-theme .shepherd-content {
+    padding: 0;
+}
+
+.shepherd-shadcn-theme .shepherd-text {
+    padding: 1rem;
+    line-height: 1.5;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+}
+
+/* Buttons */
+.shepherd-shadcn-theme .shepherd-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid hsl(var(--border));
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.shepherd-shadcn-theme .shepherd-button {
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--shepherd-radius);
+    transition: all 150ms;
+    cursor: pointer;
+}
+
+/* Primary button */
+.shepherd-shadcn-theme .shepherd-button-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.shepherd-shadcn-theme .shepherd-button-primary:hover {
+    background: hsl(var(--primary) / 0.9);
+}
+
+/* Secondary button */
+.shepherd-shadcn-theme .shepherd-button-secondary {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+}
+
+.shepherd-shadcn-theme .shepherd-button-secondary:hover {
+    background: hsl(var(--secondary) / 0.8);
+}
+
+/* Arrow */
+.shepherd-shadcn-theme .shepherd-arrow {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.shepherd-shadcn-theme .shepherd-arrow:before {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+}
+
+/* Animations */
+.shepherd-shadcn-theme {
+    opacity: 0;
+    transform: scale(0.98);
+    transition:
+        opacity 150ms,
+        transform 150ms;
+}
+
+.shepherd-shadcn-theme.shepherd-enabled {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Modal overlay fixes */
+.shepherd-modal-overlay-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    z-index: 9998 !important;
+    pointer-events: auto !important;
+}
+
+/* Adjust the overlay color to match Shadcn theme */
+.shepherd-modal-overlay-container path {
+    fill: hsl(var(--foreground) / 0.4) !important;
+    /* Semi-transparent overlay using your theme color */
+}
+
+/* Ensure the SVG is properly sized and positioned */
+svg.shepherd-modal-is-visible {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+}
