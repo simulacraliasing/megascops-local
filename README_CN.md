@@ -1,4 +1,4 @@
-# Megascops (一个用于检测红外相机媒体的GUI客户端)
+# Megascops-local (一个用于本地检测红外相机媒体的GUI软件)
 
 [EN](README.md) | 中文
 

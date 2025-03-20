@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build && node scripts/download-binaries.js",
+    "beforeBuildCommand": "node scripts/download-resources.js && pnpm build",
     "frontendDist": "../build"
   },
   "app": {
@@ -31,9 +31,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "models/*": "models/"
-    },
     "externalBin": [
       "binaries/ffmpeg",
       "binaries/organize"
