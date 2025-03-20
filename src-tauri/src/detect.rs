@@ -33,6 +33,7 @@ pub fn detect_worker(
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let ep;
+        let model_dir = config.model_path.parent().unwrap().to_str().unwrap();
         match config.ep {
             Ep::CoreML => {
                 log::info!("Using CoreML EP");
@@ -45,7 +46,7 @@ pub fn detect_worker(
                 log::info!("Using TensorRT EP on device {}", config.device);
                 ep = ort::TensorRTExecutionProvider::default()
                     .with_engine_cache(true)
-                    .with_engine_cache_path("./models")
+                    .with_engine_cache_path(&model_dir)
                     .with_timing_cache(true)
                     .with_fp16(true)
                     .with_profile_min_shapes(format!(
@@ -71,10 +72,11 @@ pub fn detect_worker(
             }
             Ep::OpenVINO => {
                 let device_type = config.device.to_uppercase();
+                
                 log::info!("Using OpenVINO EP with device type: {}", device_type);
                 ep = ort::OpenVINOExecutionProvider::default()
                     .with_device_type(device_type)
-                    .with_cache_dir("./models")
+                    .with_cache_dir(&model_dir)
                     .build();
             }
             Ep::DirectML => {

@@ -207,26 +207,21 @@ pub fn get_devices() -> Result<HashMap<String, Device>> {
 
     #[cfg(target_os = "macos")]
     {
-        use mac_sys_info::{
-            get_mac_sys_info,
-            structs::CpuArchitectureInfo::{x86_64, AppleSi},
-        };
+        use sysinfo::System;
         let mut devices = HashMap::new();
 
-        let sys_info = get_mac_sys_info()?;
-        let cpu_info = sys_info.cpu_info();
+        let sys = System::new_all();
+        let cpus = sys.cpus();
+        let cpu = cpus.first().unwrap();
         let d = Device {
-            name: cpu_info.brand_string().to_string(),
-            device_type: match cpu_info.architecture() {
-                x86_64 => DeviceType::Cpu,
-                AppleSi => DeviceType::Npu,
-            },
+            name: cpu.brand().to_string(),
+            device_type: DeviceType::Cpu,
             ep: vec![EpInfo {
                 ep: Ep::CoreML,
-                id: "0".to_string(),
+                id: "cpu".to_string(),
             }],
         };
-        devices.insert("CPU".to_string(), d);
+        devices.insert(cpu.brand().to_string(), d);
 
         Ok(devices)
     }

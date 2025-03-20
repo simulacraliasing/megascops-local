@@ -56,7 +56,7 @@ nshare = { version = "0.10.0", default-features = false, features = [
 ] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-ort = { version = "=2.0.0-rc.8", features = [
+ort = { version = "2.0.0-rc.8", features = [
     "openvino",
     "cuda",
     "tensorrt",
@@ -67,12 +67,12 @@ nvml-wrapper = { version = "0.10.0", features = ["serde"] }
 
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ort = { version = "=2.0.0-rc.8", features = ["openvino", "cuda", "tensorrt"] }
+ort = { version = "2.0.0-rc.8", features = ["openvino", "cuda", "tensorrt"] }
 nvml-wrapper = { version = "0.10.0", features = ["serde"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-ort = { version = "=2.0.0-rc.8", features = ["coreml"] }
-mac-sys-info = "0.1.13"
+ort = { version = "2.0.0-rc.8", features = ["coreml"] }
+sysinfo = "0.33.1"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

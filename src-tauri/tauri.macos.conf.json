@@ -5,17 +5,22 @@
       {
         "title": "Megascops-local",
         "width": 660,
-        "height": 488
+        "height": 540
       }
     ]
   },
   "bundle": {
+    "macOS": {
+      "frameworks": [
+        "./lib/libonnxruntime.1.19.2.dylib",
+        "./lib/libonnxruntime.dylib"
+      ]
+    },
     "resources": {
       "models/md_v5a.toml": "models/md_v5a.toml",
       "models/md_v5a_d_pp.onnx": "models/md_v5a_d_pp.onnx",
       "models/MDV6-yolov9e-1280_d_pp.toml": "models/MDV6-yolov9e-1280_d_pp.toml",
-      "models/MDV6-yolov9e-1280_d_pp.onnx": "models/MDV6-yolov9e-1280_d_pp.onnx",
-      "lib/*": ""
+      "models/MDV6-yolov9e-1280_d_pp.onnx": "models/MDV6-yolov9e-1280_d_pp.onnx"
     }
   }
 }
