@@ -37,7 +37,7 @@
         config,
         devices,
         type EpConfig,
-        type Ep,
+        models,
     } from "$lib/store.svelte";
     import { onDestroy } from "svelte";
     import { startTour } from "$lib/tour";
@@ -47,6 +47,13 @@
     let timerInterval: ReturnType<typeof setInterval> | null = null;
     let startTime: number | null = null;
     let lastProgress = 0;
+
+    function getSelectedModelName(configFile: string) {
+        const selectedModel = models.value.find(
+            (model) => model.config_file === configFile,
+        );
+        return selectedModel ? selectedModel.name : configFile;
+    }
 
     function getSelectedDevices() {
         return config.detectOptions.ep.map((epConfig) => epConfig.device);
@@ -69,9 +76,11 @@
             // Select the first available EP, or default to "Cpu" if none available
             const initialEp = availableEps.length > 0 ? availableEps[0] : "Cpu";
 
+            const epId = getEpId(newDevice, initialEp);
+
             config.detectOptions.ep = [
                 ...config.detectOptions.ep,
-                { ep: initialEp, device: newDevice, workers: 1 },
+                { ep: initialEp, device: newDevice, workers: 1, id: epId },
             ];
         } else {
             alert("没有可用的设备可以选择");
@@ -89,6 +98,12 @@
         return device ? device.ep.map((epInfo) => epInfo.ep) : [];
     }
 
+    function getEpId(deviceName: string, ep: string) {
+        const device = devices.value.get(deviceName);
+        const epInfo = device?.ep.find((info) => info.ep === ep);
+        return epInfo ? epInfo.id : "";
+    }
+
     function handleDeviceChange(epConfig: EpConfig, newDevice: string) {
         epConfig.device = newDevice;
 
@@ -103,6 +118,11 @@
         }
 
         // Force update the config to ensure reactivity
+        config.detectOptions.ep = [...config.detectOptions.ep];
+    }
+
+    function handleEpChange(epConfig: EpConfig, newEp: string) {
+        epConfig.id = getEpId(epConfig.device, newEp);
         config.detectOptions.ep = [...config.detectOptions.ep];
     }
 
@@ -178,7 +198,7 @@
                 config.detectOptions.ep,
             );
             config.detectOptions.ep = [
-                { ep: "Cpu", device: "CPU", workers: 1 },
+                { ep: "Cpu", device: "CPU", workers: 1, id: "cpu" },
             ];
         }
     });
@@ -234,7 +254,7 @@
         </div>
     </Card.Header>
     <Card.Content class="flex flex-col gap-6">
-        <section class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div id="media-folder" class="flex flex-col gap-2 col-span-full">
                 <Label for="folder">{$_("detect.folder")}</Label>
                 <div class="flex gap-2">
@@ -254,26 +274,30 @@
                     </Button>
                 </div>
             </div>
-            <div id="model" class="flex flex-col gap-2 col-span-full">
+            <div id="model" class="flex flex-col gap-2">
                 <Label>{$_("detect.model")}</Label>
                 <div class="flex gap-2">
                     <Select.Root
                         type="single"
-                        value={config.detectOptions.model}
+                        bind:value={config.detectOptions.model}
                     >
-                        <Select.Trigger>{config.detectOptions.model}</Select.Trigger>
+                        <Select.Trigger
+                            >{getSelectedModelName(
+                                config.detectOptions.model,
+                            )}</Select.Trigger
+                        >
                         <Select.Content>
-                            {#each getModels() as model}
+                            {#each models.value as model}
                                 <Select.Item
-                                    value={model}
-                                    label={model}
+                                    value={model.config_file}
+                                    label={model.name}
                                 />
                             {/each}
                         </Select.Content>
                     </Select.Root>
                 </div>
             </div>
-            <div id="resume-path" class="flex flex-col gap-2 col-span-full">
+            <div id="resume-path" class="flex flex-col gap-2">
                 <Label>{$_("detect.resumePath")}</Label>
                 <div class="flex gap-2">
                     <Input
@@ -292,17 +316,20 @@
                 </div>
             </div>
         </section>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Label>{$_("detect.selectDevice")}</Label>
+        <div class="grid grid-cols-4 gap-2 sm:grid-cols-4">
+            <Label class="col-span-2">{$_("detect.selectDevice")}</Label>
             <Label>{$_("detect.selectEp")}</Label>
             <Label>{$_("detect.worker")}</Label>
         </div>
         {#each config.detectOptions.ep as epConfig, index}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 -mt-4">
-                <div id="select-device-{index}" class="flex flex-col gap-2">
+            <div class="grid grid-cols-4 gap-2 sm:grid-cols-4 -mt-4">
+                <div
+                    id="select-device-{index}"
+                    class="flex flex-col gap-2 col-span-2"
+                >
                     <Select.Root
                         type="single"
-                        value={epConfig.device}
+                        bind:value={epConfig.device}
                         onValueChange={(value) =>
                             handleDeviceChange(epConfig, value)}
                     >
@@ -326,7 +353,12 @@
                     </Select.Root>
                 </div>
                 <div id="select-ep-{index}">
-                    <Select.Root type="single" bind:value={epConfig.ep}>
+                    <Select.Root
+                        type="single"
+                        bind:value={epConfig.ep}
+                        onValueChange={(value) =>
+                            handleEpChange(epConfig, value)}
+                    >
                         <Select.Trigger>{epConfig.ep}</Select.Trigger>
                         <Select.Content>
                             {#each getEpOptions(epConfig.device) as epOption}
@@ -359,13 +391,11 @@
                 </div>
             </div>
         {/each}
-        <div class="flex justify-center -mt-4">
-            <Button class="m-0 p-1 h-6" variant="ghost" onclick={addEpConfig}
-                ><CirclePlus /></Button
-            >
-        </div>
+        <Button class="m-0 p-1 h-6 -mt-4" variant="ghost" onclick={addEpConfig}
+            ><CirclePlus /></Button
+        >
         <!-- progress -->
-        <div id="progress" class="mb-0 relative -mt-4">
+        <div id="progress" class="mb-0 relative -mt-2">
             <!-- 进度条 -->
             <div class="h-5 bg-muted rounded-full overflow-hidden">
                 <div

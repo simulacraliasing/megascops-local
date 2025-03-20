@@ -10,3 +10,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 binaries
 .vscode
+src-tauri/models/*.onnx
+src-tauri/lib/*

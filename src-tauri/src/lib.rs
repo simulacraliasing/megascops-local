@@ -31,6 +31,7 @@ pub struct EpConfig {
     pub ep: Ep,
     pub workers: usize,
     pub device: String,
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -48,7 +49,6 @@ pub struct DetectOptions {
 pub struct ConfigOptions {
     pub confidence_threshold: f32,
     pub iou_threshold: f32,
-    pub quality: f32,
     pub export_format: ExportFormat,
     pub max_frames: Option<usize>,
     pub iframe_only: bool,
@@ -119,7 +119,7 @@ async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usiz
 
     for d in config.detect_options.ep.iter() {
         let detect_config = Arc::new(DetectConfig {
-            device: d.device.clone(),
+            device: d.id.clone(),
             ep: d.ep.clone(),
             model_path: model_config.path.clone(),
             target_size: model_config.imgsz,

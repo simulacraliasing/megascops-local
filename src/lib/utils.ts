@@ -6,12 +6,16 @@ import {
     config,
     type Config,
     devices,
+    models,
 } from "./store.svelte";
+import { readDir, BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
+import { resourceDir, join } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { Command, open as openFile } from "@tauri-apps/plugin-shell";
 import { unwrapFunctionStore, format } from "svelte-i18n";
+import * as toml from "toml";
 
 const $format = unwrapFunctionStore(format);
 
@@ -251,17 +255,26 @@ export async function listDevices() {
     }
 }
 
-export function getModels() {
+export async function getModels() {
+    const models_ = [];
     const entries = await readDir("models", {
         baseDir: BaseDirectory.Resource,
     });
-    const resource = resourceDir();
-    console.log("resourceDir", resourceDir);
+    const resource = await resourceDir();
     for (const entry of entries) {
-        console.log(`Entry: ${entry.name}`);
         if (entry.isFile && entry.name.endsWith(".toml")) {
-            models.push(entry.name);
+            const config_path = await join(resource, "models", entry.name);
+            const config = toml.parse(
+                await readTextFile("models/" + entry.name, {
+                    baseDir: BaseDirectory.Resource,
+                })
+            );
+            const model = {
+                name: config.name,
+                config_file: config_path,
+            };
+            models_.push(model);
         }
     }
-    return ["md5","md6"];
+    models.value = models_;
 }

@@ -247,24 +247,6 @@ pub struct EpInfo {
     pub id: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct EpDict {
-    pub device: String,
-    pub eps: Vec<EpInfo>,
-}
-
-impl EpDict {
-    pub fn save(self) -> Result<()> {
-        // save dict to json
-        let json = serde_json::to_string_pretty(&self)?;
-        let json_file_name = std::format!("epinfo_{}.json", self.device);
-        let json_path = Path::new(&json_file_name);
-        let mut file = File::create(json_path)?;
-        file.write_all(json.as_bytes())?;
-        Ok(())
-    }
-}
-
 // fn check_ep_availability(device: &str) -> Result<()> {
 //     info!("Checking available execution providers");
 
@@ -494,8 +476,11 @@ impl ModelConfig {
 }
 
 pub fn load_model_config<P: AsRef<Path>>(config: P) -> Result<ModelConfig> {
-    let toml_str = std::fs::read_to_string(config)?;
-    let model_config: ModelConfig = toml::from_str(&toml_str)?;
+    let toml_path = PathBuf::from(config.as_ref());
+    let base_dir = toml_path.parent().unwrap().parent().unwrap();
+    let toml_str = std::fs::read_to_string(toml_path.clone())?;
+    let mut model_config: ModelConfig = toml::from_str(&toml_str)?;
+    model_config.path = base_dir.join(&model_config.path);
     Ok(model_config)
 }
 

@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
-use log::{debug, info, warn};
 use ndarray::{s, Array4, Axis};
 use ort::{inputs, ExecutionProviderDispatch, Session, SessionOutputs};
 
@@ -36,12 +35,14 @@ pub fn detect_worker(
         let ep;
         match config.ep {
             Ep::CoreML => {
+                log::info!("Using CoreML EP");
                 ep = ort::CoreMLExecutionProvider::default()
                     .with_ane_only()
                     .with_subgraphs()
                     .build();
             }
             Ep::TensorRT => {
+                log::info!("Using TensorRT EP on device {}", config.device);
                 ep = ort::TensorRTExecutionProvider::default()
                     .with_engine_cache(true)
                     .with_engine_cache_path("./models")
@@ -63,21 +64,27 @@ pub fn detect_worker(
                     .build();
             }
             Ep::CUDA => {
+                log::info!("Using CUDA EP on device {}", config.device);
                 ep = ort::CUDAExecutionProvider::default()
                     .with_device_id(config.device.parse().unwrap_or(0))
                     .build();
             }
             Ep::OpenVINO => {
+                let device_type = config.device.to_uppercase();
+                log::info!("Using OpenVINO EP with device type: {}", device_type);
                 ep = ort::OpenVINOExecutionProvider::default()
-                    .with_device_type(config.device.to_uppercase())
+                    .with_device_type(device_type)
+                    .with_cache_dir("./models")
                     .build();
             }
             Ep::DirectML => {
+                log::info!("Using DirectML EP on device {}", config.device);
                 ep = ort::DirectMLExecutionProvider::default()
                     .with_device_id(config.device.parse().unwrap_or(0))
                     .build();
             }
             Ep::Cpu => {
+                log::info!("Using CPU EP");
                 ep = ort::CPUExecutionProvider::default().build();
             }
         }
@@ -109,7 +116,7 @@ pub fn process_frames(
         if frames.len() >= config.batch_size || last_receive_time.elapsed() >= timeout {
             if !frames.is_empty() {
                 // Process the batch of frames
-                debug!("Processing frame number: {}", frames.len());
+                log::debug!("Processing frame number: {}", frames.len());
                 process_batch(&frames, model, config, &s)?;
                 frames.clear();
             }
@@ -140,7 +147,7 @@ pub fn process_frames(
             Err(RecvTimeoutError::Timeout) => {
                 // Timeout occurred, process whatever frames we have
                 if !frames.is_empty() {
-                    debug!(
+                    log::debug!(
                         "Recieve frame timeout! Processing frame number: {}",
                         frames.len()
                     );
@@ -151,7 +158,7 @@ pub fn process_frames(
             }
             Err(RecvTimeoutError::Disconnected) => {
                 if !frames.is_empty() {
-                    debug!(
+                    log::debug!(
                         "Channel disconnected! Processing frame number: {}",
                         frames.len()
                     );

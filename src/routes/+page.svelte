@@ -10,6 +10,7 @@
         openSelectedFolder,
         saveConfig,
         listDevices,
+        getModels,
     } from "$lib/utils";
     import {
         dialogConfig,
@@ -22,7 +23,7 @@
     import { startTour } from "$lib/tour";
 
     listen<Map<string, Device>>("devices", (event) => {
-        let devies_value =  event.payload;
+        let devies_value = event.payload;
         console.log("devices", devies_value);
         for (const [key, value] of Object.entries(devies_value)) {
             devices.value.set(key, value);
@@ -54,6 +55,7 @@
     onMount(async () => {
         await loadConfig();
         await listDevices();
+        await getModels();
         if (config.firstRun) {
             startTour();
             config.firstRun = false;

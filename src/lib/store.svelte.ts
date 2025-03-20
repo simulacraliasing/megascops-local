@@ -19,6 +19,15 @@ export const devices = $state({
     value: new Map<string, Device>(),
 });
 
+export interface ModelConfig {
+    name: string;
+    config_file: string;
+};
+
+export const models = $state<{ value: ModelConfig[] }>({
+    value: [],
+});
+
 export const detectStatus = $state({
     progress: 0,
     isProcessing: false,
@@ -41,6 +50,7 @@ export interface EpConfig {
     ep: Ep;
     workers: number;
     device: string;
+    id: string;
 }
 
 export interface DetectOptions {
@@ -54,7 +64,6 @@ export interface DetectOptions {
 interface ConfigOptions {
     confidenceThreshold: number;
     iouThreshold: number;
-    quality: number;
     exportFormat: "Json" | "Csv"; // 可以使用联合类型限制可选值
     bufferPath: string | null;
     bufferSize: number;
@@ -79,6 +88,7 @@ export const config = $state<Config>({
                 ep: "Cpu",
                 device: "CPU",
                 workers: 1,
+                id: "cpu",
             },
         ],
         model: "",
@@ -88,7 +98,6 @@ export const config = $state<Config>({
     configOptions: {
         confidenceThreshold: 0.2,
         iouThreshold: 0.45,
-        quality: 70,
         exportFormat: "Json",
         bufferPath: null,
         bufferSize: 20,

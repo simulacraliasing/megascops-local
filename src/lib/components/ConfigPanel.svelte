@@ -53,15 +53,6 @@
                 step={0.05}
                 bind:value={config.configOptions.iouThreshold}
             />
-
-            <ConfigSlider
-                id="quality"
-                label={$_("config.quality")}
-                min={10}
-                max={100}
-                step={5}
-                bind:value={config.configOptions.quality}
-            />
             <div id="max-frames" class="flex flex-col gap-3">
                 <Label>{$_("config.maxFrames")}</Label>
                 <div class="flex items-center gap-2">

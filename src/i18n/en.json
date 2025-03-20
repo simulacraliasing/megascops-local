@@ -3,6 +3,8 @@
     "detect.folderPlaceholder": "No folder selected",
     "title.config": "Configuration",
     "detect.folder": "Media folder",
+    "detect.model": "Model",
+    "detect.modelPlaceholder": "No model selected",
     "detect.selectDevice": "Device",
     "detect.selectEp": "Execution provider",
     "detect.worker": "Workers number",

@@ -12,6 +12,7 @@
     "fs:default",
     "fs:allow-appconfig-read-recursive",
     "fs:allow-appconfig-write-recursive",
+    "fs:allow-resource-read-recursive",
     {
       "identifier": "shell:allow-execute",
       "allow": [
