@@ -214,14 +214,14 @@ pub fn get_devices() -> Result<HashMap<String, Device>> {
         let mut devices = HashMap::new();
 
         let sys_info = get_mac_sys_info()?;
-        let cpu_info = sys_info.cpu_info()?;
+        let cpu_info = sys_info.cpu_info();
         let d = Device {
-            name: cpu_info.brand_string.to_string(),
-            device_type: match cpu_info.architecture {
+            name: cpu_info.brand_string().to_string(),
+            device_type: match cpu_info.architecture() {
                 x86_64 => DeviceType::Cpu,
                 AppleSi => DeviceType::Npu,
             },
-            ep: [EpInfo {
+            ep: vec![EpInfo {
                 ep: Ep::CoreML,
                 id: "0".to_string(),
             }],

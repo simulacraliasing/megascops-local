@@ -393,6 +393,7 @@ fn get_video_date(video: &Path) -> Result<DateTime<Local>> {
     }
 
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     {
         use chrono::NaiveDateTime;
         use std::os::unix::fs::MetadataExt;
