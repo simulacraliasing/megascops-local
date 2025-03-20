@@ -1,11 +1,12 @@
 {
-    "app": {
-      "windows": [
-        {
-          "title": "Megascops-local",
-          "width": 660,
-          "height": 488
-        }
-      ]
-    }
+  "identifier": "com.megascops-local.app",
+  "app": {
+    "windows": [
+      {
+        "title": "Megascops-local",
+        "width": 660,
+        "height": 488
+      }
+    ]
   }
+}

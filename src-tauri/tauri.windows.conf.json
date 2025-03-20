@@ -1,11 +1,18 @@
 {
-    "app": {
-      "windows": [
-        {
-          "title": "Megascops-local",
-          "width": 720,
-          "height": 600
-        }
-      ]
+  "identifier": "com.megascops-local.app",
+  "app": {
+    "windows": [
+      {
+        "title": "Megascops-local",
+        "width": 640,
+        "height": 512
+      }
+    ]
+  },
+  "bundle": {
+    "resources": {
+      "models/*": "models/",
+      "lib/*": ""
     }
   }
+}

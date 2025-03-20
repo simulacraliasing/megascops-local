@@ -20,7 +20,7 @@
         CircleHelp,
         Clock,
         Github,
-        CircleX,
+        CircleMinus,
         CirclePlus,
     } from "lucide-svelte";
     import {
@@ -30,6 +30,7 @@
         organize,
         undo,
         toggleConfig,
+        showDialog,
         getModels,
     } from "$lib/utils";
     import {
@@ -39,7 +40,7 @@
         type EpConfig,
         models,
     } from "$lib/store.svelte";
-    import { onDestroy } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import { startTour } from "$lib/tour";
 
     let elapsedTime = $state("00:00:00");
@@ -49,6 +50,7 @@
     let lastProgress = 0;
 
     function getSelectedModelName(configFile: string) {
+        if (!configFile) return $_("detect.modelPlaceholder");
         const selectedModel = models.value.find(
             (model) => model.config_file === configFile,
         );
@@ -59,7 +61,6 @@
         return config.detectOptions.ep.map((epConfig) => epConfig.device);
     }
 
-    // 获取可用设备选项，排除已选择的设备
     function getAvailableDevices() {
         const selectedDevices = new Set(getSelectedDevices());
         return [...devices.value.keys()].filter(
@@ -83,7 +84,10 @@
                 { ep: initialEp, device: newDevice, workers: 1, id: epId },
             ];
         } else {
-            alert("没有可用的设备可以选择");
+            showDialog(
+                $_("dialog.title.Error"),
+                $_("dialog.message.noAvailableDevice"),
+            );
         }
     }
 
@@ -316,84 +320,91 @@
                 </div>
             </div>
         </section>
-        <div class="grid grid-cols-4 gap-2 sm:grid-cols-4">
-            <Label class="col-span-2">{$_("detect.selectDevice")}</Label>
-            <Label>{$_("detect.selectEp")}</Label>
-            <Label>{$_("detect.worker")}</Label>
-        </div>
-        {#each config.detectOptions.ep as epConfig, index}
-            <div class="grid grid-cols-4 gap-2 sm:grid-cols-4 -mt-4">
-                <div
-                    id="select-device-{index}"
-                    class="flex flex-col gap-2 col-span-2"
-                >
-                    <Select.Root
-                        type="single"
-                        bind:value={epConfig.device}
-                        onValueChange={(value) =>
-                            handleDeviceChange(epConfig, value)}
-                    >
-                        <Select.Trigger>{epConfig.device}</Select.Trigger>
-                        <Select.Content>
-                            {#each getAvailableDevices() as deviceName}
-                                <Select.Item
-                                    value={deviceName}
-                                    label={devices.value.get(deviceName)?.name}
-                                />
-                            {/each}
-                            <!-- Include the current device to avoid it disappearing from the list -->
-                            {#if !getAvailableDevices().includes(epConfig.device)}
-                                <Select.Item
-                                    value={epConfig.device}
-                                    label={devices.value.get(epConfig.device)
-                                        ?.name || epConfig.device}
-                                />
-                            {/if}
-                        </Select.Content>
-                    </Select.Root>
-                </div>
-                <div id="select-ep-{index}">
-                    <Select.Root
-                        type="single"
-                        bind:value={epConfig.ep}
-                        onValueChange={(value) =>
-                            handleEpChange(epConfig, value)}
-                    >
-                        <Select.Trigger>{epConfig.ep}</Select.Trigger>
-                        <Select.Content>
-                            {#each getEpOptions(epConfig.device) as epOption}
-                                <Select.Item
-                                    value={epOption}
-                                    label={epOption}
-                                />
-                            {/each}
-                        </Select.Content>
-                    </Select.Root>
-                </div>
-                <div id="worker-{index}" class="flex gap-2">
-                    <Input
-                        type="number"
-                        min="1"
-                        bind:value={epConfig.workers}
-                    />
-                    {#if index > 0}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="w-4 p-4"
-                            onclick={() => deleteEpConfig(index)}
-                        >
-                            <CircleX />
-                        </Button>
-                    {:else}
-                        <div class="w-4 p-4"></div>
-                    {/if}
-                </div>
+        <div id="ep-config" class="flex flex-col gap-8">
+            <div class="grid grid-cols-4 gap-2 sm:grid-cols-4">
+                <Label class="col-span-2">{$_("detect.selectDevice")}</Label>
+                <Label>{$_("detect.selectEp")}</Label>
+                <Label>{$_("detect.worker")}</Label>
             </div>
-        {/each}
-        <Button class="m-0 p-1 h-6 -mt-4" variant="ghost" onclick={addEpConfig}
-            ><CirclePlus /></Button
-        >
+            {#each config.detectOptions.ep as epConfig, index}
+                <div class="grid grid-cols-4 gap-2 sm:grid-cols-4 -mt-4">
+                    <div
+                        id="select-device-{index}"
+                        class="flex flex-col gap-2 col-span-2"
+                    >
+                        <Select.Root
+                            type="single"
+                            bind:value={epConfig.device}
+                            onValueChange={(value) =>
+                                handleDeviceChange(epConfig, value)}
+                        >
+                            <Select.Trigger>{epConfig.device}</Select.Trigger>
+                            <Select.Content>
+                                {#each getAvailableDevices() as deviceName}
+                                    <Select.Item
+                                        value={deviceName}
+                                        label={devices.value.get(deviceName)
+                                            ?.name}
+                                    />
+                                {/each}
+                                <!-- Include the current device to avoid it disappearing from the list -->
+                                {#if !getAvailableDevices().includes(epConfig.device)}
+                                    <Select.Item
+                                        value={epConfig.device}
+                                        label={devices.value.get(
+                                            epConfig.device,
+                                        )?.name || epConfig.device}
+                                    />
+                                {/if}
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
+                    <div id="select-ep-{index}">
+                        <Select.Root
+                            type="single"
+                            bind:value={epConfig.ep}
+                            onValueChange={(value) =>
+                                handleEpChange(epConfig, value)}
+                        >
+                            <Select.Trigger>{epConfig.ep}</Select.Trigger>
+                            <Select.Content>
+                                {#each getEpOptions(epConfig.device) as epOption}
+                                    <Select.Item
+                                        value={epOption}
+                                        label={epOption}
+                                    />
+                                {/each}
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
+                    <div id="worker-{index}" class="flex gap-2">
+                        <Input
+                            type="number"
+                            min="1"
+                            bind:value={epConfig.workers}
+                        />
+                        {#if index > 0}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="w-4 p-4"
+                                onclick={() => deleteEpConfig(index)}
+                            >
+                                <CircleMinus />
+                            </Button>
+                        {:else}
+                            <div class="w-4 p-4"></div>
+                        {/if}
+                    </div>
+                </div>
+            {/each}
+            <Button
+                id="add-ep"
+                class="m-0 p-1 h-6 -mt-4"
+                variant="ghost"
+                onclick={addEpConfig}><CirclePlus /></Button
+            >
+        </div>
         <!-- progress -->
         <div id="progress" class="mb-0 relative -mt-2">
             <!-- 进度条 -->

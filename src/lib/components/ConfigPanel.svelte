@@ -53,6 +53,16 @@
                 step={0.05}
                 bind:value={config.configOptions.iouThreshold}
             />
+
+            <ConfigSlider
+                id="batch-size"
+                label={$_("config.batchSize")}
+                min={1}
+                max={6}
+                step={1}
+                bind:value={config.configOptions.batchSize}
+            />
+
             <div id="max-frames" class="flex flex-col gap-3">
                 <Label>{$_("config.maxFrames")}</Label>
                 <div class="flex items-center gap-2">

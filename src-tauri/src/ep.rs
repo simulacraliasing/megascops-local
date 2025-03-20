@@ -207,7 +207,10 @@ pub fn get_devices() -> Result<HashMap<String, Device>> {
 
     #[cfg(target_os = "macos")]
     {
-        use mac_sys_info::get_mac_sys_info;
+        use mac_sys_info::{
+            get_mac_sys_info,
+            structs::CpuArchitectureInfo::{x86_64, AppleSi},
+        };
         let mut devices = HashMap::new();
 
         let sys_info = get_mac_sys_info()?;

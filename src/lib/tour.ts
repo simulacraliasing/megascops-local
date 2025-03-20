@@ -116,7 +116,13 @@ tour.addStep({
 
 const tourSteps = generateTourSteps([
     { id: "media-folder" },
+    { id: "model" },
     { id: "resume-path", position: "top" },
+    { id: "ep-config", position: "top" },
+    { id: "select-device-0", position: "top" },
+    { id: "select-ep-0", position: "top" },
+    { id: "worker-0", position: "top" },
+    { id: "add-ep", position: "top" },
     { id: "progress", position: "top" },
     { id: "guess", position: "top" },
     { id: "organize", position: "top" },
@@ -125,7 +131,7 @@ const tourSteps = generateTourSteps([
     { id: "config-button", position: "bottom" },
     { id: "confidence" },
     { id: "iou" },
-    { id: "quality" },
+    { id: "batch-size" },
     { id: "max-frames" },
     { id: "iframe-only" },
     { id: "export-format", position: "top" },
