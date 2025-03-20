@@ -11,10 +11,10 @@
   },
   "bundle": {
     "resources": {
-      "models/md_v5a.toml": "models/",
-      "models/md_v5a_d_pp.onnx": "models/",
-      "models/MDV6-yolov9e-1280_d_pp.toml": "models/",
-      "models/MDV6-yolov9e-1280_d_pp.onnx": "models/",
+      "models/md_v5a.toml": "models/md_v5a.toml",
+      "models/md_v5a_d_pp.onnx": "models/md_v5a_d_pp.onnx",
+      "models/MDV6-yolov9e-1280_d_pp.toml": "models/MDV6-yolov9e-1280_d_pp.toml",
+      "models/MDV6-yolov9e-1280_d_pp.onnx": "models/MDV6-yolov9e-1280_d_pp.onnx",
       "lib/*": ""
     }
   }

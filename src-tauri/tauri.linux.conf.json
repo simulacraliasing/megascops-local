@@ -11,10 +11,10 @@
     },
     "bundle": {
         "resources": {
-            "models/md_v5a_fp16.toml": "models/",
-            "models/md_v5a_d_pp_fp16.onnx": "models/",
-            "models/MDV6-yolov9e-1280_d_pp.toml": "models/",
-            "models/MDV6-yolov9e-1280_d_pp.onnx": "models/",
+            "models/md_v5a_fp16.toml": "models/md_v5a_fp16.toml",
+            "models/md_v5a_d_pp_fp16.onnx": "models/md_v5a_d_pp_fp16.onnx",
+            "models/MDV6-yolov9e-1280_d_pp_fp16.toml": "models/MDV6-yolov9e-1280_d_pp_fp16.toml",
+            "models/MDV6-yolov9e-1280_d_pp_fp16.onnx": "models/MDV6-yolov9e-1280_d_pp_fp16.onnx",
             "lib/*": ""
         }
     }

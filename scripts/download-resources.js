@@ -147,22 +147,22 @@ function getModelInfo(targetTriple) {
     ) {
         return [
             {
-                url: "https://huggingface.co/Simulacraliasing/Megadetector/resolve/main/MDV6-yolov9e-1280_d_pp.onnx?download=true",
+                url: "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp.onnx?download=1",
                 outputPath: path.join(modelsDir, "MDV6-yolov9e-1280_d_pp.onnx"),
             },
             {
-                url: "https://huggingface.co/Simulacraliasing/Megadetector/resolve/main/md_v5a_d_pp.onnx?download=true",
+                url: "https://zenodo.org/records/15056594/files/md_v5a_d_pp.onnx?download=1",
                 outputPath: path.join(modelsDir, "md_v5a_d_pp.onnx"),
             },
         ];
     } else {
         return [
             {
-                url: "https://huggingface.co/Simulacraliasing/Megadetector/resolve/main/MDV6-yolov9e-1280_d_pp.onnx?download=true",
-                outputPath: path.join(modelsDir, "MDV6-yolov9e-1280_d_pp.onnx"),
+                url: "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp_fp16.onnx?download=1",
+                outputPath: path.join(modelsDir, "MDV6-yolov9e-1280_d_pp_fp16.onnx"),
             },
             {
-                url: "https://huggingface.co/Simulacraliasing/Megadetector/resolve/main/md_v5a_d_pp_fp16.onnx?download=true",
+                url: "https://zenodo.org/records/15056594/files/md_v5a_d_pp_fp16.onnx?download=1",
                 outputPath: path.join(modelsDir, "md_v5a_d_pp_fp16.onnx"),
             },
         ];
