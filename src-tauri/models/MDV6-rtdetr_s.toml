@@ -1,0 +1,6 @@
+name = "mdv6-rtdetr-s"
+path = "models/MDV6-rtdetr_s.onnx"
+imgsz = 640
+classes = ["Animal", "Person", "Vehicle"]
+url = "https://zenodo.org/records/15070834/files/MDV6-rtdetr_s.onnx?download=1"
+md5 = "8be5ee01cdf55bcbec3eb3629d66d8b4"

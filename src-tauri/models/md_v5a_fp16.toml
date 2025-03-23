@@ -1,8 +1,6 @@
 name = "mdv5a_fp16"
 path = "models/md_v5a_d_pp_fp16.onnx"
+url = "https://zenodo.org/records/15056594/files/md_v5a_d_pp_fp16.onnx?download=1"
 imgsz = 1280
-classes = [
-    "Animal",
-    "Person",
-    "Vehicle",
-]
+classes = ["Animal", "Person", "Vehicle"]
+md5 = "79b512ade046b5fc9d714b0af8a3efa1"

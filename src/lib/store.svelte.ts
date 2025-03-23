@@ -22,11 +22,24 @@ export const devices = $state({
 export interface ModelConfig {
     name: string;
     config_file: string;
-};
+    onnx_file: string;
+    url: string;
+    md5: string;
+    downloading: boolean;
+    downloadProgress: number;
+    isDownloaded: boolean;
+}
 
 export const models = $state<{ value: ModelConfig[] }>({
     value: [],
 });
+
+export interface DownloadProgress {
+    modelName: string;
+    progress: number;
+    finished: boolean;
+    error?: string;
+}
 
 export const detectStatus = $state({
     progress: 0,

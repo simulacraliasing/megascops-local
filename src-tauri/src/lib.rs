@@ -1,11 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossbeam_channel::{bounded, unbounded};
+use futures_util::stream::StreamExt;
 use log::error;
+use md5::{Digest, Md5};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
@@ -128,6 +131,7 @@ async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usiz
             conf_thres: config.config_options.confidence_threshold,
             batch_size: config.config_options.batch_size,
             timeout: 50,
+            model_name: model_config.name.clone(),
         });
         for _ in 0..d.workers {
             let detect_config = Arc::clone(&detect_config);
@@ -315,6 +319,213 @@ async fn list_devices(app: AppHandle) {
 }
 
 #[tauri::command]
+fn calculate_md5(file_path: String) -> Result<String, String> {
+    let mut file = File::open(&file_path).map_err(|e| e.to_string())?;
+    let mut hasher = Md5::new();
+    let _ = std::io::copy(&mut file, &mut hasher).map_err(|e| e.to_string())?;
+    let hash = hasher.finalize();
+
+    Ok(format!("{:x}", hash))
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DownloadProgress {
+    model_name: String,
+    progress: f32,
+    finished: bool,
+    error: Option<String>,
+}
+
+#[tauri::command]
+async fn download_model(
+    url: String,
+    destination: String,
+    model_name: String,
+    app: AppHandle,
+    md5: String,
+) -> Result<(), String> {
+    tokio::spawn(async move {
+        log::info!("Downloading model from {}", url);
+        let client = reqwest::Client::new();
+
+        let resp = match client.head(&url).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                log::error!("Could not connect to server: {}", e);
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        model_name: model_name.clone(),
+                        progress: 0.0,
+                        finished: true,
+                        error: Some(format!("Could not connect to server: {}", e)),
+                    },
+                );
+                return;
+            }
+        };
+
+        let mut total_size = resp.content_length().unwrap_or(0);
+
+        let resp = match client.get(&url).send().await {
+            Ok(resp) => {
+                if !resp.status().is_success() {
+                    let _ = app.emit(
+                        "download-progress",
+                        DownloadProgress {
+                            model_name: model_name.clone(),
+                            progress: 0.0,
+                            finished: true,
+                            error: Some(format!("Request failed: {}", resp.status())),
+                        },
+                    );
+                    return;
+                }
+                log::info!("Download started");
+                if let Some(content_length) = resp.headers().get("content-length") {
+                    if let Ok(content_length) = content_length.to_str() {
+                        if let Ok(content_length) = content_length.parse::<u64>() {
+                            total_size = content_length;
+                        }
+                    }
+                }
+                resp
+            }
+            Err(e) => {
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        model_name: model_name.clone(),
+                        progress: 0.0,
+                        finished: true,
+                        error: Some(format!("Download failed: {}", e)),
+                    },
+                );
+                return;
+            }
+        };
+
+        let mut file = match tokio::fs::File::create(&destination).await {
+            Ok(file) => file,
+            Err(e) => {
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        model_name: model_name.clone(),
+                        progress: 0.0,
+                        finished: true,
+                        error: Some(format!("Create file failed: {}", e)),
+                    },
+                );
+                return;
+            }
+        };
+
+        let mut downloaded: u64 = 0;
+        let mut stream = resp.bytes_stream();
+        let mut hasher = Md5::new();
+
+        let mut last_update = Instant::now();
+        let update_interval = Duration::from_millis(250);
+
+        while let Some(item) = stream.next().await {
+            let chunk = match item {
+                Ok(chunk) => chunk,
+                Err(e) => {
+                    let _ = app.emit(
+                        "download-progress",
+                        DownloadProgress {
+                            model_name: model_name.clone(),
+                            progress: 0.0,
+                            finished: true,
+                            error: Some(format!("Download failed: {}", e)),
+                        },
+                    );
+                    return;
+                }
+            };
+
+            // Update MD5 hash with the chunk
+            hasher.update(&chunk);
+
+            if let Err(e) = tokio::io::copy(&mut chunk.as_ref(), &mut file).await {
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        model_name: model_name.clone(),
+                        progress: 0.0,
+                        finished: true,
+                        error: Some(format!("Copy file failed: {}", e)),
+                    },
+                );
+                return;
+            }
+
+            downloaded += chunk.len() as u64;
+
+            if total_size > 0 {
+                let progress = (downloaded as f32 / total_size as f32) * 100.0;
+                let now = Instant::now();
+                if now.duration_since(last_update) >= update_interval {
+                    let _ = app.emit(
+                        "download-progress",
+                        DownloadProgress {
+                            model_name: model_name.clone(),
+                            progress,
+                            finished: false,
+                            error: None,
+                        },
+                    );
+                    last_update = now;
+                }
+            }
+        }
+
+        // Verify MD5 checksum
+        let calculated_md5 = format!("{:x}", hasher.finalize());
+        if !md5.is_empty() && calculated_md5 != md5.to_lowercase() {
+            log::error!(
+                "MD5 checksum verification failed. Expected: {}, Got: {}",
+                md5,
+                calculated_md5
+            );
+            let _ = app.emit(
+                "download-progress",
+                DownloadProgress {
+                    model_name: model_name.clone(),
+                    progress: 100.0,
+                    finished: true,
+                    error: Some(format!(
+                        "MD5 checksum verification failed. Expected: {}, Got: {}",
+                        md5, calculated_md5
+                    )),
+                },
+            );
+
+            // Delete the corrupted file
+            if let Err(e) = tokio::fs::remove_file(&destination).await {
+                log::error!("Failed to delete corrupted file: {}", e);
+            }
+            return;
+        }
+
+        log::info!("Download completed and MD5 checksum verified successfully");
+        let _ = app.emit(
+            "download-progress",
+            DownloadProgress {
+                model_name,
+                progress: 100.0,
+                finished: true,
+                error: None,
+            },
+        );
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn process_media(app: AppHandle, config: Config) {
     let (progress_sender, progress_receiver) = crossbeam_channel::bounded(5);
 
@@ -371,7 +582,12 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![process_media, list_devices])
+        .invoke_handler(tauri::generate_handler![
+            process_media,
+            list_devices,
+            download_model,
+            calculate_md5,
+        ])
         .setup(|app| {
             let _ = app.store("store.json")?;
             Ok(())

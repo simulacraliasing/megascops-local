@@ -22,6 +22,8 @@
         Github,
         CircleMinus,
         CirclePlus,
+        Check,
+        Download,
     } from "lucide-svelte";
     import {
         selectFolder,
@@ -31,7 +33,7 @@
         undo,
         toggleConfig,
         showDialog,
-        getModels,
+        downloadModel,
     } from "$lib/utils";
     import {
         detectStatus,
@@ -39,12 +41,14 @@
         devices,
         type EpConfig,
         models,
+        type ModelConfig,
     } from "$lib/store.svelte";
     import { onDestroy, onMount } from "svelte";
     import { startTour } from "$lib/tour";
 
     let elapsedTime = $state("00:00:00");
     let remainingTime = $state("");
+    let isModelSelectOpen = $state(false);
     let timerInterval: ReturnType<typeof setInterval> | null = null;
     let startTime: number | null = null;
     let lastProgress = 0;
@@ -284,6 +288,7 @@
                     <Select.Root
                         type="single"
                         bind:value={config.detectOptions.model}
+                        bind:open={isModelSelectOpen}
                     >
                         <Select.Trigger
                             >{getSelectedModelName(
@@ -292,10 +297,46 @@
                         >
                         <Select.Content>
                             {#each models.value as model}
-                                <Select.Item
-                                    value={model.config_file}
-                                    label={model.name}
-                                />
+                                <div class="relative">
+                                    <Select.Item
+                                        value={model.config_file}
+                                        label={model.name}
+                                        class="flex justify-between items-center"
+                                    >
+                                        <span>{model.name}</span>
+
+                                        {#if !model.isDownloaded}
+                                            <!-- 下载按钮 -->
+                                            <button
+                                                onclick={(e) => {
+                                                    downloadModel(model);
+                                                    setTimeout(() => {
+                                                        isModelSelectOpen = true;
+                                                    }, 0);
+                                                    return false;
+                                                }}
+                                            >
+                                                {#if model.downloading}
+                                                    <LoaderCircle
+                                                        class="w-4 h-4 animate-spin"
+                                                    />
+                                                {:else}
+                                                    <Download class="w-4 h-4" />
+                                                {/if}
+                                            </button>
+                                        {:else}
+                                            <Check class="w-4 h-4" />
+                                        {/if}
+                                    </Select.Item>
+
+                                    <!-- 下载进度条 -->
+                                    {#if model.downloading}
+                                        <div
+                                            class="absolute bottom-0 left-0 h-1 bg-slate-500 transition-all duration-300"
+                                            style="width: {model.downloadProgress}%"
+                                        ></div>
+                                    {/if}
+                                </div>
                             {/each}
                         </Select.Content>
                     </Select.Root>

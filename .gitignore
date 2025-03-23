@@ -13,3 +13,6 @@ binaries
 src-tauri/models/*.onnx
 src-tauri/models/*.blob
 src-tauri/lib/*
+scripts/python/*
+patch/**/*.dll
+patch/**/*.exe

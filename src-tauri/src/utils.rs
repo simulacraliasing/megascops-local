@@ -249,6 +249,8 @@ pub struct ModelConfig {
     pub path: PathBuf,
     pub imgsz: usize,
     pub classes: BTreeSet<String>,
+    pub url: Option<String>,
+    pub md5: Option<String>,
 }
 
 impl PartialEq for ModelConfig {
@@ -257,6 +259,8 @@ impl PartialEq for ModelConfig {
             && self.path == other.path
             && self.imgsz == other.imgsz
             && self.classes == other.classes
+            && self.url == other.url
+            && self.md5 == other.md5
     }
 }
 

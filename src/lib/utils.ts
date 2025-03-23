@@ -7,14 +7,24 @@ import {
     type Config,
     devices,
     models,
+    type ModelConfig,
+    type DownloadProgress,
 } from "./store.svelte";
-import { readDir, BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
+import {
+    readDir,
+    BaseDirectory,
+    readTextFile,
+    exists,
+    remove,
+} from "@tauri-apps/plugin-fs";
 import { resourceDir, join } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { Command, open as openFile } from "@tauri-apps/plugin-shell";
 import { unwrapFunctionStore, format } from "svelte-i18n";
+import { listen } from "@tauri-apps/api/event";
+import { Window } from "@tauri-apps/api/window";
 import * as toml from "toml";
 
 const $format = unwrapFunctionStore(format);
@@ -268,13 +278,157 @@ export async function getModels() {
                 await readTextFile("models/" + entry.name, {
                     baseDir: BaseDirectory.Resource,
                 })
-            );
-            const model = {
+            ) as {
+                name: string;
+                path: string;
+                url: string;
+                md5: string;
+            };
+            const model: ModelConfig = {
                 name: config.name,
                 config_file: config_path,
+                url: config.url,
+                onnx_file: await join(resource, config.path),
+                isDownloaded: false,
+                downloading: false,
+                downloadProgress: 0,
+                md5: config.md5,
             };
+
+            try {
+                const fileExists = await exists(config.path, {
+                    baseDir: BaseDirectory.Resource,
+                });
+
+                if (fileExists && config.md5) {
+                    // Validate MD5 checksum for existing files
+                    try {
+                        // Read the file as binary
+                        const fullPath = await join(resource, config.path);
+
+                        const calculatedMd5 = await invoke("calculate_md5", {
+                            filePath: fullPath,
+                        });
+
+                        if (calculatedMd5 === config.md5.toLowerCase()) {
+                            model.isDownloaded = true;
+                            console.log(
+                                `MD5 checksum verified for ${model.name}`
+                            );
+                        } else {
+                            console.error(
+                                `MD5 checksum mismatch for ${model.name}. Expected: ${config.md5}, Got: ${calculatedMd5}`
+                            );
+                            // Remove corrupted file
+                            await remove(config.path, {
+                                baseDir: BaseDirectory.Resource,
+                            });
+                            model.isDownloaded = false;
+                        }
+                    } catch (error) {
+                        console.error(
+                            `Error validating MD5 for ${model.name}:`,
+                            error
+                        );
+                        model.isDownloaded = fileExists; // Fall back to file existence check
+                    }
+                } else {
+                    model.isDownloaded = fileExists;
+                }
+            } catch (error) {
+                console.error(
+                    `Error checking if ${model.onnx_file} exists:`,
+                    error
+                );
+                model.isDownloaded = false;
+            }
+
             models_.push(model);
         }
     }
     models.value = models_;
+}
+
+export async function downloadModel(model: ModelConfig) {
+    const appWindow = Window.getCurrent();
+    // 检查必要条件
+    if (!model.url) {
+        console.error(
+            `Cannot download model ${model.name}: URL is not defined`
+        );
+        return;
+    }
+
+    if (!model.onnx_file) {
+        console.error(
+            `Cannot download model ${model.name}: onnx_file is not defined`
+        );
+        return;
+    }
+
+    try {
+        // 设置下载状态
+        model.downloading = true;
+        model.downloadProgress = 0;
+        updateModels();
+
+        // 设置进度监听器
+        const unlisten = await listen<DownloadProgress>(
+            "download-progress",
+            (event) => {
+                if (event.payload.modelName === model.name) {
+                    console.log("Model download progress:", event.payload);
+                    model.downloadProgress = event.payload.progress;
+
+                    if (event.payload.finished) {
+                        model.downloading = false;
+                        model.isDownloaded = !event.payload.error;
+
+                        if (event.payload.error) {
+                            console.error(
+                                `Model${model.name} download failed:`,
+                                event.payload.error
+                            );
+                            appWindow.emit("show-notification", {
+                                title: "Download Failed",
+                                body: `Model ${model.name} download failed: ${event.payload.error}`,
+                            });
+                        } else {
+                            appWindow.emit("show-notification", {
+                                title: "下载完成",
+                                body: `Model ${model.name} downloaded successfully`,
+                            });
+                        }
+
+                        unlisten();
+                    }
+
+                    updateModels();
+                }
+            }
+        );
+
+        // 调用 Rust 后端下载文件
+        await invoke("download_model", {
+            url: model.url,
+            destination: model.onnx_file,
+            modelName: model.name,
+            md5: model.md5,
+        });
+    } catch (error) {
+        console.error(`Could not download model ${model.name}:`, error);
+        model.downloading = false;
+        model.downloadProgress = 0;
+        updateModels();
+
+        appWindow.emit("show-notification", {
+            title: "Download Failed",
+            body: `Could not download model ${model.name}: ${error}`,
+        });
+    }
+}
+
+function updateModels() {
+    const currentModels = models.value;
+    models.value = [...currentModels];
 }

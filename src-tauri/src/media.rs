@@ -1,10 +1,12 @@
 use std::fs::{metadata, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::str;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use crossbeam_channel::Sender;
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
@@ -47,6 +49,7 @@ pub struct Frame {
     pub frame_index: usize,
     pub total_frames: usize,
     pub shoot_time: Option<DateTime<Local>>,
+    pub iframe: bool,
 }
 
 pub struct ErrFile {
@@ -169,6 +172,7 @@ pub fn process_image(
                 frame_index: 0,
                 total_frames: 1,
                 shoot_time,
+                iframe: false,
             };
 
             ArrayItem::Frame(frame_data)
@@ -192,7 +196,7 @@ fn resize_with_pad(
     let (width, height) = img.dimensions();
     let mut resized_width = imgsz;
     let mut resized_height = imgsz;
-    let ratio: f32;
+    let ratio: f32; // orig_size / target_size
 
     if width > height {
         ratio = width as f32 / imgsz as f32;
@@ -240,11 +244,43 @@ pub fn process_video(
     array_q_s: Sender<ArrayItem>,
 ) -> Result<()> {
     let video_path = file.tmp_path.to_string_lossy();
+
+    let (orig_w, orig_h) = get_video_dimensions(&video_path)?;
+
     let input = create_ffmpeg_iter(&video_path, imgsz, iframe)?;
 
-    handle_ffmpeg_output(input, array_q_s, imgsz, file, max_frames)?;
+    handle_ffmpeg_output(
+        input, array_q_s, imgsz, file, max_frames, orig_w, orig_h, iframe,
+    )?;
 
     Ok(())
+}
+
+fn get_video_dimensions(video_path: &str) -> Result<(usize, usize)> {
+    let output = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=s=x:p=0",
+            video_path,
+        ])
+        .output()?;
+
+    let dimensions = str::from_utf8(&output.stdout)?;
+    let parts: Vec<&str> = dimensions.trim().split('x').collect();
+
+    if parts.len() == 2 {
+        let width = parts[0].parse::<usize>()?;
+        let height = parts[1].parse::<usize>()?;
+        Ok((width, height))
+    } else {
+        Err(anyhow!("Invalid video dimensions: {}", dimensions))
+    }
 }
 
 fn create_ffmpeg_iter(video_path: &str, imgsz: usize, iframe: bool) -> Result<FfmpegIterator> {
@@ -280,6 +316,9 @@ fn handle_ffmpeg_output(
     imgsz: usize,
     file: &FileItem,
     max_frames: Option<usize>,
+    orig_w: usize,
+    orig_h: usize,
+    iframe: bool,
 ) -> Result<()> {
     let file_path = file.file_path.to_string_lossy().into_owned();
 
@@ -319,15 +358,13 @@ fn handle_ffmpeg_output(
         };
 
         //calculate ratio and padding
-        let width = frames[0].width as usize;
-        let height = frames[0].height as usize;
-        let pad = (width as i32 - height as i32).abs() / 2;
-        let padding = if width > height {
+        let ratio = orig_w.max(orig_w) as f32 / imgsz as f32;
+        let pad = (orig_w as f32 - orig_h as f32).abs() / 2.0 / ratio;
+        let padding = if orig_w > orig_h {
             (0, pad as usize)
         } else {
             (pad as usize, 0)
         };
-        let ratio = width.max(height) as f32 / imgsz as f32;
 
         let frames_length = sampled_frames.len();
 
@@ -338,13 +375,14 @@ fn handle_ffmpeg_output(
             let frame_data = ArrayItem::Frame(Frame {
                 data: ndarray_frame,
                 file: file.clone(),
-                width,
-                height,
+                width: orig_w,
+                height: orig_h,
                 padding,
                 ratio,
                 frame_index: f.frame_num as usize,
                 total_frames: frames_length,
                 shoot_time,
+                iframe,
             });
             s.send(frame_data).expect("Send video frame failed");
         }

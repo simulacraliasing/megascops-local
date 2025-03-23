@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
-use ndarray::{s, Array4, Axis};
+use ndarray::{array, s, Array2, Array4, Axis};
 use ort::{inputs, ExecutionProviderDispatch, Session, SessionOutputs};
 
 use crate::export::ExportFrame;
@@ -24,6 +24,7 @@ pub struct DetectConfig {
     pub iou_thres: f32,
     pub batch_size: usize,
     pub timeout: usize,
+    pub model_name: String,
 }
 
 pub fn detect_worker(
@@ -72,7 +73,7 @@ pub fn detect_worker(
             }
             Ep::OpenVINO => {
                 let device_type = config.device.to_uppercase();
-                
+
                 log::info!("Using OpenVINO EP with device type: {}", device_type);
                 ep = ort::OpenVINOExecutionProvider::default()
                     .with_device_type(device_type)
@@ -140,6 +141,7 @@ pub fn process_frames(
                             bboxes: Some(vec![]),
                             label: None,
                             error: Some(err_file.error.to_string()),
+                            iframe: false,
                         })
                         .unwrap(),
                 }
@@ -183,14 +185,39 @@ pub fn process_batch(
 ) -> Result<()> {
     let batch_size = frames.len();
     let mut inputs = Array4::<f32>::zeros((batch_size, 3, config.target_size, config.target_size));
-    for (i, frame) in frames.iter().enumerate() {
-        inputs
-            .slice_mut(s![i, .., ..config.target_size, ..config.target_size])
-            .assign(&frame.data);
+    let outputs: SessionOutputs;
+    if config.model_name.contains("rtdetr") {
+        let mut orig_target_sizes = Array2::<i64>::zeros((batch_size, 2));
+        for (i, frame) in frames.iter().enumerate() {
+            orig_target_sizes.slice_mut(s![i, ..]).assign(&array![
+                frame.width.max(frame.height) as i64,
+                frame.height.max(frame.width) as i64
+            ]);
+            inputs
+                .slice_mut(s![i, .., ..config.target_size, ..config.target_size])
+                .assign(&frame.data);
+        }
+
+        outputs = model
+            .run(
+                inputs! {
+                    "images" => inputs.view(),
+                    "orig_target_sizes" => orig_target_sizes.view()
+                }
+                .unwrap(),
+            )
+            .unwrap();
+    } else {
+        for (i, frame) in frames.iter().enumerate() {
+            inputs
+                .slice_mut(s![i, .., ..config.target_size, ..config.target_size])
+                .assign(&frame.data);
+        }
+        outputs = model
+            .run(inputs!["images" => inputs.view()].unwrap())
+            .unwrap();
     }
-    let outputs: SessionOutputs = model
-        .run(inputs!["images" => inputs.view()].unwrap())
-        .unwrap();
+
     let output = outputs["output0"]
         .try_extract_tensor::<f32>()
         .unwrap()
@@ -201,35 +228,67 @@ pub fn process_batch(
     for i in 0..batch_size {
         let output = output.slice(s![.., .., i]); //[6, 102000]
         let mut boxes: Vec<Bbox> = vec![];
-        // Iterate bboxes
-        for row in output.axis_iter(Axis(1)) {
-            let row: Vec<_> = row.iter().copied().collect();
-            let class_id = row[5] as usize;
-            let prob = row[4];
-            if prob < config.conf_thres {
-                continue;
+        if config.model_name.contains("rtdetr") {
+            for row in output.axis_iter(Axis(1)) {
+                // output tensor:[x1, y1, x2, y2, prob, class_id]
+                // rtdetr bbox is original size
+                let row: Vec<_> = row.iter().copied().collect();
+                let class_id = row[5] as usize;
+                let prob = row[4];
+                if prob < config.conf_thres {
+                    continue;
+                }
+                let mut x1 = row[0] as f32 - frames[i].padding.0 as f32 * frames[i].ratio;
+                let mut y1 = row[1] as f32 - frames[i].padding.1 as f32 * frames[i].ratio;
+                let mut x2 = row[2] as f32 - frames[i].padding.0 as f32 * frames[i].ratio;
+                let mut y2 = row[3] as f32 - frames[i].padding.1 as f32 * frames[i].ratio;
+                x1 = x1.max(0.0).min(frames[i].width as f32);
+                y1 = y1.max(0.0).min(frames[i].height as f32);
+                x2 = x2.max(0.0).min(frames[i].width as f32);
+                y2 = y2.max(0.0).min(frames[i].height as f32);
+                let bbox = Bbox {
+                    class: class_id,
+                    score: prob,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                };
+                boxes.push(bbox);
             }
-            let mut x1 = row[0] as f32 * frames[i].ratio - frames[i].padding.0 as f32;
-            let mut y1 = row[1] as f32 * frames[i].ratio - frames[i].padding.1 as f32;
-            let mut x2 = row[2] as f32 * frames[i].ratio - frames[i].padding.0 as f32;
-            let mut y2 = row[3] as f32 * frames[i].ratio - frames[i].padding.1 as f32;
-            x1 = x1.max(0.0).min(frames[i].width as f32);
-            y1 = y1.max(0.0).min(frames[i].height as f32);
-            x2 = x2.max(0.0).min(frames[i].width as f32);
-            y2 = y2.max(0.0).min(frames[i].height as f32);
-            let bbox = Bbox {
-                class: class_id,
-                score: prob,
-                x1,
-                y1,
-                x2,
-                y2,
-            };
-            boxes.push(bbox);
-        }
-        let nms_boxes = nms(&mut boxes, true, 100, config.iou_thres);
+        } else {
+            // Iterate bboxes
+            for row in output.axis_iter(Axis(1)) {
+                // output tensor:[x1, y1, x2, y2, prob, class_id]
+                let row: Vec<_> = row.iter().copied().collect();
+                let class_id = row[5] as usize;
+                let prob = row[4];
+                if prob < config.conf_thres {
+                    continue;
+                }
+                let mut x1 = (row[0] as f32 - frames[i].padding.0 as f32) * frames[i].ratio;
+                let mut y1 = (row[1] as f32 - frames[i].padding.1 as f32) * frames[i].ratio;
+                let mut x2 = (row[2] as f32 - frames[i].padding.0 as f32) * frames[i].ratio;
+                let mut y2 = (row[3] as f32 - frames[i].padding.1 as f32) * frames[i].ratio;
+                x1 = x1.max(0.0).min(frames[i].width as f32);
+                y1 = y1.max(0.0).min(frames[i].height as f32);
+                x2 = x2.max(0.0).min(frames[i].width as f32);
+                y2 = y2.max(0.0).min(frames[i].height as f32);
+                let bbox = Bbox {
+                    class: class_id,
+                    score: prob,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                };
+                boxes.push(bbox);
+            }
 
-        let label = get_label(&nms_boxes, &config.class_map);
+            boxes = nms(&mut boxes, true, 100, config.iou_thres);
+        }
+
+        let label = get_label(&boxes, &config.class_map);
 
         let shoot_time = match frames[i].shoot_time {
             Some(shoot_time) => Some(shoot_time.to_string()),
@@ -238,12 +297,13 @@ pub fn process_batch(
 
         let export_frame = ExportFrame {
             file: frames[i].file.clone(),
-            shoot_time: shoot_time,
+            shoot_time,
             frame_index: frames[i].frame_index,
             total_frames: frames[i].total_frames,
-            bboxes: Some(nms_boxes),
+            bboxes: Some(boxes),
             label: Some(label),
             error: None,
+            iframe: frames[i].iframe,
         };
         export_q_s.send(export_frame).unwrap();
     }

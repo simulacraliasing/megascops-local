@@ -27,7 +27,6 @@ const organizeBinary = path.join(
     `organize-${targetTriple}${extension}`
 );
 
-const modelsDir = path.join(__dirname, "..", "src-tauri", "models");
 
 const libDir = path.join(__dirname, "..", "src-tauri", "lib");
 
@@ -38,11 +37,6 @@ if (!targetTriple) {
 // Create directory if it doesn't exist
 if (!fs.existsSync(binaryDir)) {
     fs.mkdirSync(binaryDir, { recursive: true });
-}
-
-// Create directory if it doesn't exist
-if (!fs.existsSync(modelsDir)) {
-    fs.mkdirSync(modelsDir, { recursive: true });
 }
 
 if (!fs.existsSync(libDir)) {
@@ -140,35 +134,6 @@ function getOrganizeInfo() {
     }
 }
 
-function getModelInfo(targetTriple) {
-    if (
-        targetTriple == "x86_64-apple-darwin" ||
-        targetTriple == "aarch64-apple-darwin"
-    ) {
-        return [
-            {
-                url: "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp.onnx?download=1",
-                outputPath: path.join(modelsDir, "MDV6-yolov9e-1280_d_pp.onnx"),
-            },
-            {
-                url: "https://zenodo.org/records/15056594/files/md_v5a_d_pp.onnx?download=1",
-                outputPath: path.join(modelsDir, "md_v5a_d_pp.onnx"),
-            },
-        ];
-    } else {
-        return [
-            {
-                url: "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp_fp16.onnx?download=1",
-                outputPath: path.join(modelsDir, "MDV6-yolov9e-1280_d_pp_fp16.onnx"),
-            },
-            {
-                url: "https://zenodo.org/records/15056594/files/md_v5a_d_pp_fp16.onnx?download=1",
-                outputPath: path.join(modelsDir, "md_v5a_d_pp_fp16.onnx"),
-            },
-        ];
-    }
-}
-
 function getOrtInfo(targetTriple) {
     if (targetTriple == "x86_64-pc-windows-msvc") {
         return {
@@ -179,6 +144,11 @@ function getOrtInfo(targetTriple) {
         return {
             url: "https://github.com/simulacraliasing/md5rs/releases/download/ort-prebuilt/ort-prebuilt-linux-x86_64.tar.xz",
             outputPath: path.join(libDir, "ort-prebuilt-linux-x86_64.tar.xz"),
+        };
+    } else if (targetTriple == "aarch64-apple-darwin") {
+        return {
+            url: "https://github.com/microsoft/onnxruntime/releases/download/v1.19.2/onnxruntime-osx-arm64-1.19.2.tgz",
+            outputPath: path.join(libDir, "onnxruntime-osx-arm64-1.19.2.tgz"),
         };
     }
 }
@@ -231,6 +201,8 @@ async function extractFile(filePath, extractDir) {
         }
     } else if (filePath.endsWith(".tar.xz")) {
         execSync(`tar -xf "${filePath}" -C "${extractDir}"`);
+    } else if (filePath.endsWith(".tgz")) {
+        execSync(`tar -xzf "${filePath}" -C "${extractDir}"`);
     } else {
         throw new Error(`Unsupported file extension for ${filePath}`);
     }
@@ -290,23 +262,79 @@ async function processFFmpegExtraction(extractDir, targetTriple) {
 // Process ORT after extraction
 async function processOrtExtraction(extractDir, targetTriple) {
     if (targetTriple === "x86_64-pc-windows-msvc") {
-        const ortDll = findFileRecursive(extractDir, "onnxruntime.dll");
-        if (ortDll) {
-            copyFileSync(ortDll, path.join(libDir, "onnxruntime.dll"));
-            console.log("Copied onnxruntime.dll to lib directory");
-        } else {
+        // Copy all DLL files from the extracted directory to lib directory
+        const copyDlls = (dir) => {
+            const files = readdirSync(dir);
+            for (const file of files) {
+                const filePath = path.join(dir, file);
+                const stat = statSync(filePath);
+
+                if (stat.isDirectory()) {
+                    copyDlls(filePath);
+                } else if (file.endsWith(".dll")) {
+                    copyFileSync(filePath, path.join(libDir, file));
+                    console.log(`Copied ${file} to lib directory`);
+                }
+            }
+        };
+
+        copyDlls(extractDir);
+
+        // Verify the main DLL was found
+        if (!fs.existsSync(path.join(libDir, "onnxruntime.dll"))) {
             throw new Error(
                 "Could not find onnxruntime.dll in extracted files"
             );
         }
     } else if (targetTriple === "x86_64-unknown-linux-gnu") {
-        const ortSo = findFileRecursive(extractDir, "libonnxruntime.so");
-        if (ortSo) {
-            copyFileSync(ortSo, path.join(libDir, "libonnxruntime.so"));
-            console.log("Copied libonnxruntime.so to lib directory");
-        } else {
+        // Copy all .so files from the extracted directory to lib directory
+        const copySoFiles = (dir) => {
+            const files = readdirSync(dir);
+            for (const file of files) {
+                const filePath = path.join(dir, file);
+                const stat = statSync(filePath);
+
+                if (stat.isDirectory()) {
+                    copySoFiles(filePath);
+                } else if (file.endsWith(".so") || file.endsWith(".so.1")) {
+                    copyFileSync(filePath, path.join(libDir, file));
+                    console.log(`Copied ${file} to lib directory`);
+                }
+            }
+        };
+
+        copySoFiles(extractDir);
+
+        // Verify the main .so was found
+        if (!fs.existsSync(path.join(libDir, "libonnxruntime.so"))) {
             throw new Error(
                 "Could not find libonnxruntime.so in extracted files"
+            );
+        }
+    } else if (targetTriple === "aarch64-apple-darwin") {
+        // Copy all .dylib files from the extracted directory to lib directory
+        const copyDylibFiles = (dir) => {
+            const files = readdirSync(dir);
+            for (const file of files) {
+                const filePath = path.join(dir, file);
+                const stat = statSync(filePath);
+
+                if (stat.isDirectory()) {
+                    copyDylibFiles(filePath);
+                } else if (file.endsWith(".dylib")) {
+                    // For the main library, rename it to libonnxruntime.dylib
+                    copyFileSync(filePath, path.join(libDir, file));
+                    console.log(`Copied ${file} to lib directory`);
+                }
+            }
+        };
+
+        copyDylibFiles(extractDir);
+
+        // Verify the main dylib was copied
+        if (!fs.existsSync(path.join(libDir, "libonnxruntime.dylib"))) {
+            throw new Error(
+                "Could not find libonnxruntime dylib in extracted files"
             );
         }
     }
@@ -378,26 +406,6 @@ async function downloadOrganize() {
     }
 }
 
-async function downloadModels(targetTriple) {
-    const modelInfo = getModelInfo(targetTriple);
-
-    for (let i = 0; i < modelInfo.length; i++) {
-        const { url, outputPath } = modelInfo[i];
-        try {
-            if (fs.existsSync(outputPath)) {
-                console.log("Model already exists, skipping download");
-                continue;
-            }
-            console.log(`Downloading model for ${targetTriple} from ${url}...`);
-            await downloadFile(url, outputPath);
-            console.log("Download complete!");
-        } catch (error) {
-            console.error("Error downloading model:", error);
-            process.exit(1);
-        }
-    }
-}
-
 async function downloadOrt(targetTriple) {
     const { url, outputPath } = getOrtInfo(targetTriple);
     try {
@@ -409,6 +417,12 @@ async function downloadOrt(targetTriple) {
             }
         } else if (targetTriple == "x86_64-unknown-linux-gnu") {
             const ortPath = path.join(libDir, "libonnxruntime.so");
+            if (fs.existsSync(ortPath)) {
+                console.log("ORT already exists, skipping download");
+                return;
+            }
+        } else if (targetTriple == "aarch64-apple-darwin") {
+            const ortPath = path.join(libDir, "libonnxruntime.dylib");
             if (fs.existsSync(ortPath)) {
                 console.log("ORT already exists, skipping download");
                 return;
@@ -433,11 +447,4 @@ downloadFFmpeg();
 
 downloadOrganize();
 
-downloadModels(targetTriple);
-
-if (
-    targetTriple == "x86_64-pc-windows-msvc" ||
-    targetTriple == "x86_64-unknown-linux-gnu"
-) {
-    downloadOrt(targetTriple);
-}
+downloadOrt(targetTriple);

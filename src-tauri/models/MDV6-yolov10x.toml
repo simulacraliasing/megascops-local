@@ -1,0 +1,10 @@
+name = "mdv6-yolov10x"
+path = "models/MDV6-yolov10x.onnx"
+url = "https://zenodo.org/records/15070834/files/MDV6-yolov10x.onnx?download=1"
+imgsz = 640
+classes = [
+    "Animal",
+    "Person",
+    "Vehicle",
+]
+md5 = "a082fad7187b4c5518198efdb0989b99"

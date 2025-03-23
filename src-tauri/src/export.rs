@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use csv::WriterBuilder;
-use serde::{Deserialize, Serialize};
 use log::info;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::{Bbox, FileItem};
 use crate::ExportFormat;
@@ -22,6 +22,7 @@ pub struct ExportFrame {
     pub bboxes: Option<Vec<Bbox>>,
     pub label: Option<HashSet<String>>,
     pub error: Option<String>,
+    pub iframe: bool,
 }
 
 pub fn parse_export_csv<P: AsRef<Path>>(csv: P) -> Result<Vec<ExportFrame>> {
@@ -52,6 +53,7 @@ pub fn parse_export_csv<P: AsRef<Path>>(csv: P) -> Result<Vec<ExportFrame>> {
                     .collect(),
             ),
             error: Some(frame[9].to_string()),
+            iframe: frame[10].parse::<bool>()?,
         };
         export_data.push(frame_item);
     }

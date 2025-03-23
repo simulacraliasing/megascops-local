@@ -1,8 +1,6 @@
 name = "mdv6-yolov9e-1280"
 path = "models/MDV6-yolov9e-1280_d_pp.onnx"
+url = "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp.onnx?download=1"
 imgsz = 1280
-classes = [
-    "Animal",
-    "Person",
-    "Vehicle",
-]
+classes = ["Animal", "Person", "Vehicle"]
+md5="bed07acca5ab407ad3158147cc5f7977"
