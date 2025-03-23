@@ -1,7 +1,7 @@
 use std::fs::{metadata, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::str;
 use std::thread;
 use std::time::Duration;
@@ -257,18 +257,30 @@ pub fn process_video(
 }
 
 fn get_video_dimensions(video_path: &str) -> Result<(usize, usize)> {
-    let output = Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=width,height",
-            "-of",
-            "csv=s=x:p=0",
-            video_path,
-        ])
+    let mut command = Command::new("ffprobe");
+
+    command.args([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height",
+        "-of",
+        "csv=s=x:p=0",
+        video_path,
+    ]);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .output()?;
 
     let dimensions = str::from_utf8(&output.stdout)?;
