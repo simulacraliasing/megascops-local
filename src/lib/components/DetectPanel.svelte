@@ -120,6 +120,7 @@
         // Reset the EP to the first available option for the new device
         if (availableEps.length > 0) {
             epConfig.ep = availableEps[0];
+            epConfig.id = getEpId(epConfig.device, epConfig.ep);
         } else {
             // Fallback to "Cpu" if no options available (shouldn't happen in normal cases)
             epConfig.ep = "Cpu";
