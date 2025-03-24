@@ -1,6 +1,6 @@
 ; Basic Information
 Name "Megascops-local CUDA Patch"
-OutFile "Megascops-local-cuda_path.exe"
+OutFile "Megascops-local-cuda_patch.exe"
 Unicode True
 
 SetCompressor /SOLID /FINAL lzma

@@ -1,6 +1,6 @@
 ; Basic Information
 Name "Megascops-local TensorRT Patch"
-OutFile "Megascops-local-trt_path.exe"
+OutFile "Megascops-local-trt_patch.exe"
 Unicode True
 
 SetCompressor /SOLID /FINAL lzma
