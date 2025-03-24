@@ -33,6 +33,7 @@
     ],
     "externalBin": [
       "binaries/ffmpeg",
+      "binaries/ffprobe",
       "binaries/organize"
     ],
     "resources": [

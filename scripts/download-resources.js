@@ -22,11 +22,14 @@ const targetTriple = /host: (\S+)/g.exec(rustInfo)[1];
 const extension = targetTriple === "x86_64-pc-windows-msvc" ? ".exe" : "";
 
 const ffmpegBinary = path.join(binaryDir, `ffmpeg-${targetTriple}${extension}`);
+const ffprobeBinary = path.join(
+    binaryDir,
+    `ffprobe-${targetTriple}${extension}`
+);
 const organizeBinary = path.join(
     binaryDir,
     `organize-${targetTriple}${extension}`
 );
-
 
 const libDir = path.join(__dirname, "..", "src-tauri", "lib");
 
@@ -243,6 +246,17 @@ async function processFFmpegExtraction(extractDir, targetTriple) {
         } else {
             throw new Error("Could not find ffmpeg.exe in extracted files");
         }
+
+        const ffprobeExe = findFileRecursive(extractDir, "ffprobe.exe");
+        if (ffprobeExe) {
+            copyFileSync(
+                ffprobeExe,
+                path.join(binaryDir, `ffprobe-${targetTriple}.exe`)
+            );
+            console.log("Copied ffprobe.exe to windows directory");
+        } else {
+            throw new Error("Could not find ffprobe.exe in extracted files");
+        }
     } else {
         // For macOS/Linux
         const ffmpegBin = findFileRecursive(extractDir, "ffmpeg");
@@ -255,6 +269,18 @@ async function processFFmpegExtraction(extractDir, targetTriple) {
             execSync(`chmod +x ${destPath}`);
         } else {
             throw new Error("Could not find ffmpeg binary in extracted files");
+        }
+
+        const ffprobeBin = findFileRecursive(extractDir, "ffprobe");
+        if (ffprobeBin) {
+            let destPath = path.join(binaryDir, `ffprobe-${targetTriple}`);
+            copyFileSync(ffprobeBin, destPath);
+            console.log(`Copied ffprobe to ${targetTriple} directory`);
+
+            // Make executable on non-Windows platforms
+            execSync(`chmod +x ${destPath}`);
+        } else {
+            throw new Error("Could not find ffprobe binary in extracted files");
         }
     }
 }
@@ -352,7 +378,7 @@ function cleanUp(filePath) {
 
 // Download and extract FFmpeg
 async function downloadFFmpeg() {
-    if (fs.existsSync(ffmpegBinary)) {
+    if (fs.existsSync(ffmpegBinary) && fs.existsSync(ffprobeBinary)) {
         console.log("FFmpeg already exists, skipping download");
         return;
     }

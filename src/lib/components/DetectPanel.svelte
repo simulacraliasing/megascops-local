@@ -1,6 +1,5 @@
 <script lang="ts">
     import { open } from "@tauri-apps/plugin-shell";
-    import { Badge } from "$lib/components/ui/badge/index";
     import { Toggle } from "$lib/components/ui/toggle/index";
     import * as Card from "$lib/components/ui/card/index";
     import { Label } from "$lib/components/ui/label/index";
@@ -41,9 +40,9 @@
         devices,
         type EpConfig,
         models,
-        type ModelConfig,
+        modelsLoading,
     } from "$lib/store.svelte";
-    import { onDestroy, onMount } from "svelte";
+    import { onDestroy } from "svelte";
     import { startTour } from "$lib/tour";
 
     let elapsedTime = $state("00:00:00");
@@ -291,54 +290,72 @@
                         bind:value={config.detectOptions.model}
                         bind:open={isModelSelectOpen}
                     >
-                        <Select.Trigger
-                            >{getSelectedModelName(
-                                config.detectOptions.model,
-                            )}</Select.Trigger
-                        >
+                        <Select.Trigger>
+                            {#if modelsLoading.value}
+                                <span class="text-gray-400"
+                                    >{$_("loading")}</span
+                                >
+                            {:else}
+                                {getSelectedModelName(
+                                    config.detectOptions.model,
+                                )}
+                            {/if}
+                        </Select.Trigger>
                         <Select.Content>
-                            {#each models.value as model}
-                                <div class="relative">
-                                    <Select.Item
-                                        value={model.config_file}
-                                        label={model.name}
-                                        class="flex justify-between items-center"
-                                    >
-                                        <span>{model.name}</span>
-
-                                        {#if !model.isDownloaded}
-                                            <!-- 下载按钮 -->
-                                            <button
-                                                onclick={(e) => {
-                                                    downloadModel(model);
-                                                    setTimeout(() => {
-                                                        isModelSelectOpen = true;
-                                                    }, 0);
-                                                    return false;
-                                                }}
-                                            >
-                                                {#if model.downloading}
-                                                    <LoaderCircle
-                                                        class="w-4 h-4 animate-spin"
-                                                    />
-                                                {:else}
-                                                    <Download class="w-4 h-4" />
-                                                {/if}
-                                            </button>
-                                        {:else}
-                                            <Check class="w-4 h-4" />
-                                        {/if}
-                                    </Select.Item>
-
-                                    <!-- 下载进度条 -->
-                                    {#if model.downloading}
-                                        <div
-                                            class="absolute bottom-0 left-0 h-1 bg-slate-500 transition-all duration-300"
-                                            style="width: {model.downloadProgress}%"
-                                        ></div>
-                                    {/if}
+                            {#if modelsLoading.value}
+                                <div
+                                    class="flex items-center justify-center p-4"
+                                >
+                                    <LoaderCircle
+                                        class="w-5 h-5 mr-2 animate-spin"
+                                    />
                                 </div>
-                            {/each}
+                            {:else}
+                                {#each models.value as model}
+                                    <div class="relative">
+                                        <Select.Item
+                                            value={model.config_file}
+                                            label={model.name}
+                                            class="flex justify-between items-center"
+                                        >
+                                            <span>{model.name}</span>
+
+                                            {#if !model.isDownloaded}
+                                                <!-- 下载按钮 -->
+                                                <button
+                                                    onclick={(e) => {
+                                                        downloadModel(model);
+                                                        setTimeout(() => {
+                                                            isModelSelectOpen = true;
+                                                        }, 0);
+                                                        return false;
+                                                    }}
+                                                >
+                                                    {#if model.downloading}
+                                                        <LoaderCircle
+                                                            class="w-4 h-4 animate-spin"
+                                                        />
+                                                    {:else}
+                                                        <Download
+                                                            class="w-4 h-4"
+                                                        />
+                                                    {/if}
+                                                </button>
+                                            {:else}
+                                                <Check class="w-4 h-4" />
+                                            {/if}
+                                        </Select.Item>
+
+                                        <!-- 下载进度条 -->
+                                        {#if model.downloading}
+                                            <div
+                                                class="absolute bottom-0 left-0 h-1 bg-slate-500 transition-all duration-300"
+                                                style="width: {model.downloadProgress}%"
+                                            ></div>
+                                        {/if}
+                                    </div>
+                                {/each}
+                            {/if}
                         </Select.Content>
                     </Select.Root>
                 </div>
@@ -524,7 +541,13 @@
                             size="icon"
                             onclick={handleStartProcessing}
                             disabled={detectStatus.isProcessing ||
-                                !config.detectOptions.selectedFolder}
+                                !config.detectOptions.selectedFolder ||
+                                !models.value.some(
+                                    (model) =>
+                                        model.config_file ===
+                                            config.detectOptions.model &&
+                                        model.isDownloaded === true,
+                                )}
                         >
                             {#if detectStatus.isProcessing}
                                 <LoaderCircle

@@ -13,7 +13,8 @@
     "worker": "Workers number",
     "resumePathPlaceholder": "No result file selected",
     "resumePath": "Resume path",
-    "remainTime": "Remaining: "
+    "remainTime": "Remaining: ",
+    "loading": "Loading..."
   },
   "config": {
     "iou": "IoU",

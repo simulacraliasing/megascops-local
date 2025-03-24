@@ -13,7 +13,8 @@
     "worker": "工作线程数量",
     "resumePathPlaceholder": "选择result文件",
     "resumePath": "恢复文件",
-    "remainTime": "剩余时间: "
+    "remainTime": "剩余时间: ",
+    "loading": "加载中..."
   },
   "config": {
     "iou": "交并比",

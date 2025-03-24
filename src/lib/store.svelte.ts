@@ -121,3 +121,7 @@ export const config = $state<Config>({
     },
     firstRun: true,
 });
+
+export const modelsLoading = $state({
+    value: true,
+});

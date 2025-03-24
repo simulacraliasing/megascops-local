@@ -18,6 +18,7 @@
         config,
         type Device,
         devices,
+        modelsLoading,
     } from "$lib/store.svelte";
     import { DetectPanel, ConfigPanel } from "$lib/components";
     import { startTour } from "$lib/tour";
@@ -55,7 +56,10 @@
     onMount(async () => {
         await loadConfig();
         await listDevices();
-        await getModels();
+        modelsLoading.value = true;
+        getModels().finally(() => {
+            modelsLoading.value = false;
+        });
         if (config.firstRun) {
             startTour();
             config.firstRun = false;
