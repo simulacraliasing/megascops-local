@@ -150,7 +150,7 @@ function getOrtInfo(targetTriple) {
         };
     } else if (targetTriple == "aarch64-apple-darwin") {
         return {
-            url: "https://github.com/microsoft/onnxruntime/releases/download/v1.19.2/onnxruntime-osx-arm64-1.19.2.tgz",
+            url: "https://github.com/microsoft/onnxruntime/releases/download/v1.19.2/onnxruntime-osx-universal2-1.19.2.tgz",
             outputPath: path.join(libDir, "onnxruntime-osx-arm64-1.19.2.tgz"),
         };
     }
