@@ -13,6 +13,7 @@ use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use ffmpeg_sidecar::command::FfmpegCommand;
 use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
 use ffmpeg_sidecar::iter::FfmpegIterator;
+use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use image::{DynamicImage, GenericImageView, ImageReader};
 use jpeg_decoder::Decoder;
 use log::{debug, error, warn};
@@ -257,7 +258,7 @@ pub fn process_video(
 }
 
 fn get_video_dimensions(video_path: &str) -> Result<(usize, usize)> {
-    let mut command = Command::new("ffprobe");
+    let mut command = Command::new(ffprobe_path());
 
     command.args([
         "-v",
