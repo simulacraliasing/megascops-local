@@ -293,7 +293,7 @@
                         <Select.Trigger>
                             {#if modelsLoading.value}
                                 <span class="text-gray-400"
-                                    >{$_("loading")}</span
+                                    >{$_("detect.loading")}</span
                                 >
                             {:else}
                                 {getSelectedModelName(
