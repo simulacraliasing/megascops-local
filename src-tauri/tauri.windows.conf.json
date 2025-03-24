@@ -12,7 +12,6 @@
   "bundle": {
     "resources": {
       "models/toml/*": "models/",
-      "models/onnx/md_v5a_d_pp_fp16.onnx": "models/md_v5a_d_pp_fp16.onnx",
       "lib/*": ""
     },
     "windows": {
