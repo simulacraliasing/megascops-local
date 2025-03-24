@@ -17,7 +17,8 @@
       ]
     },
     "resources": {
-      "models/md_v5a_d_pp.onnx": "models/md_v5a_d_pp.onnx"
+      "models/toml/*": "models/",
+      "models/onnx/md_v5a_d_pp.onnx": "models/md_v5a_d_pp.onnx"
     }
   }
 }

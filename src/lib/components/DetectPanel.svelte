@@ -301,7 +301,7 @@
                                 )}
                             {/if}
                         </Select.Trigger>
-                        <Select.Content>
+                        <Select.Content class="max-h-48">
                             {#if modelsLoading.value}
                                 <div
                                     class="flex items-center justify-center p-4"
