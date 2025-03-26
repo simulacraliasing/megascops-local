@@ -19,6 +19,12 @@
         "displayLanguageSelector": true,
         "installerHooks": "./windows/hooks.nsi"
       }
-    }
+    },
+    "externalBin": [
+      "binaries/ffmpeg",
+      "binaries/ffprobe",
+      "binaries/organize",
+      "binaries/checker"
+    ]
   }
 }
