@@ -1,0 +1,3 @@
+[submodule "patch"]
+	path = patch
+	url = https://github.com/simulacraliasing/megascops-patch
