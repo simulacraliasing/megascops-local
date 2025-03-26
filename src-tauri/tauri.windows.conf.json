@@ -16,6 +16,7 @@
     },
     "windows": {
       "nsis": {
+        "displayLanguageSelector": true,
         "installerHooks": "./windows/hooks.nsi"
       }
     }

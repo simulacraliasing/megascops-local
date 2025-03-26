@@ -23,6 +23,8 @@
         CirclePlus,
         Check,
         Download,
+        Bot,
+        Cpu,
     } from "lucide-svelte";
     import {
         selectFolder,
@@ -296,6 +298,7 @@
                                     >{$_("detect.loading")}</span
                                 >
                             {:else}
+                                <Bot class="w-4 h-4" />
                                 {getSelectedModelName(
                                     config.detectOptions.model,
                                 )}
@@ -397,7 +400,10 @@
                             onValueChange={(value) =>
                                 handleDeviceChange(epConfig, value)}
                         >
-                            <Select.Trigger>{epConfig.device}</Select.Trigger>
+                            <Select.Trigger>
+                                <Cpu class="w-4 h-4" />
+                                {epConfig.device}
+                            </Select.Trigger>
                             <Select.Content>
                                 {#each getAvailableDevices() as deviceName}
                                     <Select.Item

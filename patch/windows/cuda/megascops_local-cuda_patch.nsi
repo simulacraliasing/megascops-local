@@ -1,4 +1,4 @@
-; Basic Information
+﻿; Basic Information
 Name "Megascops-local CUDA Patch"
 OutFile "Megascops-local-cuda_patch.exe"
 Unicode True
@@ -14,7 +14,35 @@ SetCompressor /SOLID /FINAL lzma
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
+
+; 添加语言支持
 !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "SimpChinese"
+
+; 定义中英文消息字符串
+!define MSG_APP_NOT_FOUND_EN "Application not found at $INSTDIR. Do you want to continue anyway?"
+!define MSG_APP_NOT_FOUND_CN "在 $INSTDIR 未找到应用程序。是否仍要继续？"
+
+!define MSG_ENSURE_NOT_RUNNING_EN "Please make sure Megascops-local is not running before continuing."
+!define MSG_ENSURE_NOT_RUNNING_CN "请确保 Megascops-local 未在运行后再继续。"
+
+!define MSG_STARTING_PATCH_EN "Starting DLL patch installation ${PATCH_VERSION}..."
+!define MSG_STARTING_PATCH_CN "开始安装 DLL 补丁 ${PATCH_VERSION}..."
+
+!define MSG_PROCESSING_FILE_EN "Processing file: $1"
+!define MSG_PROCESSING_FILE_CN "正在处理文件: $1"
+
+!define MSG_BACKING_UP_EN "Backing up $1..."
+!define MSG_BACKING_UP_CN "正在备份 $1..."
+
+!define MSG_UPDATING_EN "Updating $1..."
+!define MSG_UPDATING_CN "正在更新 $1..."
+
+!define MSG_PATCH_COMPLETED_EN "Patch installation completed!"
+!define MSG_PATCH_COMPLETED_CN "补丁安装完成！"
+
+!define MSG_SUCCESS_EN "DLL patch has been successfully installed! Application has been updated to patch version ${PATCH_VERSION}."
+!define MSG_SUCCESS_CN "DLL 补丁已成功安装！应用程序已更新至补丁版本 ${PATCH_VERSION}。"
 
 RequestExecutionLevel user
 
@@ -22,7 +50,22 @@ RequestExecutionLevel user
 !define PATCH_VERSION "12"
 !define SOURCE_DLL_FOLDER "lib"  ; Folder relative to the NSIS script
 
+; 添加语言检测函数
+Function GetUserLanguage
+  Push $0
+  System::Call 'kernel32::GetUserDefaultUILanguage() i.r0'
+  ${If} $0 == 2052  ; 简体中文的LCID
+    StrCpy $LANGUAGE ${LANG_SIMPCHINESE}
+  ${Else}
+    StrCpy $LANGUAGE ${LANG_ENGLISH}
+  ${EndIf}
+  Pop $0
+FunctionEnd
+
 Function .onInit
+  ; 检测用户语言
+  Call GetUserLanguage
+  
   Var /GLOBAL InstallFound
   StrCpy $InstallFound "0"
   ReadRegStr $INSTDIR HKCU "Software\megascops-local\Megascops-local" ""
@@ -55,7 +98,11 @@ Function .onInit
   ${If} ${FileExists} "$INSTDIR\Megascops-local.exe"
     ; Application exists, continue
   ${Else}
-    MessageBox MB_YESNO|MB_ICONQUESTION "Application not found at $INSTDIR. Do you want to continue anyway?" IDYES continue IDNO abort
+    ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+      MessageBox MB_YESNO|MB_ICONQUESTION "${MSG_APP_NOT_FOUND_CN}" IDYES continue IDNO abort
+    ${Else}
+      MessageBox MB_YESNO|MB_ICONQUESTION "${MSG_APP_NOT_FOUND_EN}" IDYES continue IDNO abort
+    ${EndIf}
     abort:
       Abort
     continue:
@@ -66,9 +113,13 @@ Section "Install DLL Patch"
   SetOutPath $INSTDIR
   
   ; Simple warning about closing the application
-  MessageBox MB_OK|MB_ICONINFORMATION "Please make sure Megascops-local is not running before continuing."
-  
-  DetailPrint "Starting DLL patch installation ${PATCH_VERSION}..."
+  ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+    MessageBox MB_OK|MB_ICONINFORMATION "${MSG_ENSURE_NOT_RUNNING_CN}"
+    DetailPrint "${MSG_STARTING_PATCH_CN}"
+  ${Else}
+    MessageBox MB_OK|MB_ICONINFORMATION "${MSG_ENSURE_NOT_RUNNING_EN}"
+    DetailPrint "${MSG_STARTING_PATCH_EN}"
+  ${EndIf}
   
   ; Create backup directory
   CreateDirectory "$INSTDIR\Backup_${PATCH_VERSION}"
@@ -88,18 +139,30 @@ Section "Install DLL Patch"
   ; Now process each DLL file
   FindFirst $0 $1 "$TEMP\megascops_cuda_patch\*.dll"
   ${DoWhile} $1 != ""
-    DetailPrint "Processing file: $1"
+    ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+      DetailPrint "${MSG_PROCESSING_FILE_CN}"
+    ${Else}
+      DetailPrint "${MSG_PROCESSING_FILE_EN}"
+    ${EndIf}
     
     ; Backup original DLL file (if exists)
     ${If} ${FileExists} "$INSTDIR\$1"
-      DetailPrint "Backing up $1..."
+      ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+        DetailPrint "${MSG_BACKING_UP_CN}"
+      ${Else}
+        DetailPrint "${MSG_BACKING_UP_EN}"
+      ${EndIf}
       CopyFiles /SILENT "$INSTDIR\$1" "$INSTDIR\Backup_${PATCH_VERSION}\$1"
       ; Delete original file for replacement
       Delete "$INSTDIR\$1"
     ${EndIf}
     
     ; Copy new DLL file
-    DetailPrint "Updating $1..."
+    ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+      DetailPrint "${MSG_UPDATING_CN}"
+    ${Else}
+      DetailPrint "${MSG_UPDATING_EN}"
+    ${EndIf}
     CopyFiles /SILENT "$TEMP\megascops_cuda_patch\$1" "$INSTDIR\$1"
     
     ; Record updated file
@@ -116,6 +179,11 @@ Section "Install DLL Patch"
   ; Clean up temporary directory
   RMDir /r "$TEMP\megascops_cuda_patch"
   
-  DetailPrint "Patch installation completed!"
-  MessageBox MB_OK "DLL patch has been successfully installed! Application has been updated to patch version ${PATCH_VERSION}."
+  ${If} $LANGUAGE == ${LANG_SIMPCHINESE}
+    DetailPrint "${MSG_PATCH_COMPLETED_CN}"
+    MessageBox MB_OK "${MSG_SUCCESS_CN}"
+  ${Else}
+    DetailPrint "${MSG_PATCH_COMPLETED_EN}"
+    MessageBox MB_OK "${MSG_SUCCESS_EN}"
+  ${EndIf}
 SectionEnd

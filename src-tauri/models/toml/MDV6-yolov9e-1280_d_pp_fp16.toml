@@ -1,6 +1,6 @@
 name = "mdv6-yolov9e-1280_fp16"
 path = "models/MDV6-yolov9e-1280_d_pp_fp16.onnx"
-url = "https://zenodo.org/records/15056594/files/MDV6-yolov9e-1280_d_pp_fp16.onnx?download=1"
+url = "https://megascops.app/models/MDV6-yolov9e-1280_d_pp_fp16.onnx"
 imgsz = 1280
 classes = ["Animal", "Person", "Vehicle"]
-md5="445330c48d105164383ff61aad79ae24"
+md5 = "445330c48d105164383ff61aad79ae24"

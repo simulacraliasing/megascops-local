@@ -1,4 +1,4 @@
-!macro StrContains OUT NEEDLE HAYSTACK
+﻿!macro StrContains OUT NEEDLE HAYSTACK
   Push `${HAYSTACK}`
   Push `${NEEDLE}`
   Call StrContains
@@ -42,8 +42,24 @@ FunctionEnd
   # Create a temporary batch file to run nvidia-smi and capture output
   FileOpen $0 "$TEMP\check_cuda.bat" w
   FileWrite $0 '@echo off$\r$\n'
-  FileWrite $0 'nvidia-smi --query-gpu=name,compute_cap --format=csv > "%TEMP%\nvidia_check.txt" 2>&1$\r$\n'
+  
+  FileWrite $0 'if exist "%windir%\Sysnative\nvidia-smi.exe" ( $\r$\n'
+  FileWrite $0 '    set "nvsmi=%windir%\Sysnative\nvidia-smi.exe"$\r$\n'
+  FileWrite $0 ') else if exist "%windir%\System32\nvidia-smi.exe" ( $\r$\n'
+  FileWrite $0 '    set "nvsmi=%windir%\System32\nvidia-smi.exe"$\r$\n'
+  FileWrite $0 ') else ( $\r$\n'
+  FileWrite $0 '    echo ERROR: nvidia-smi.exe not found > "%TEMP%\nvidia_check.txt"$\r$\n'
+  FileWrite $0 '    exit /b 9009$\r$\n'
+  FileWrite $0 ')$\r$\n'
+  
+  FileWrite $0 'if not defined nvsmi ( $\r$\n'
+  FileWrite $0 '    echo ERROR: GPU driver not installed > "%TEMP%\nvidia_check.txt"$\r$\n'
+  FileWrite $0 '    exit /b 1$\r$\n'
+  FileWrite $0 ')$\r$\n'
+  
+  FileWrite $0 '"%nvsmi%" --query-gpu=name,compute_cap --format=csv >> "%TEMP%\nvidia_check.txt" 2>&1$\r$\n'
   FileWrite $0 'exit /b %ERRORLEVEL%$\r$\n'
+  
   FileClose $0
   
   # Execute the batch file silently
@@ -72,27 +88,36 @@ FunctionEnd
       # Compare compute capability with 7.5
       ${If} $6 >= "7.5"
         # High compute capability - recommend both CUDA and TensorRT
-        MessageBox MB_YESNO "NVIDIA GPU detected with high compute capability ($6):$\r$\n$\r$\n$4$\r$\n$\r$\nWould you like to download and install the CUDA + TensorRT patch for optimal GPU acceleration?" IDYES download_tensorrt_patch IDNO skip_nvidia_patch
+        MessageBox MB_YESNO "NVIDIA GPU detected with high compute capability ($6):$\r$\n$\r$\n$4$\r$\n$\r$\nWould you like to download and install the CUDA + TensorRT patch for optimal GPU acceleration?" IDYES download_both_patches IDNO skip_nvidia_patch
         
-        download_tensorrt_patch:
-          # Show download progress dialog
-          MessageBox MB_OK "Downloading CUDA + TensorRT patch. Please wait..."
+        download_both_patches:
+          # First download and install CUDA patch
+          StrCpy $7 "https://megascops.app/patches/Megascops-local-cuda_patch.exe"
           
-          # Define your TensorRT patch download URL
-          StrCpy $7 "https://github.com/simulacraliasing/megascops-local/releases/download/patch/Megascops-local-trt_patch.exe"
-          
-          # Download the patch file
-          inetc::get /POPUP "Downloading CUDA + TensorRT Patch" /CAPTION "Download Progress" "$7" "$TEMP\tensorrt_patch.exe" /END
+          inetc::get /POPUP "Downloading CUDA Patch" /CAPTION "Download Progress" "$7" "$TEMP\cuda_patch.exe" /END
           Pop $8 # Get download status
           
           # Check if download was successful
           ${If} $8 == "OK"
             # Run the downloaded patch
-            ExecWait '"$TEMP\tensorrt_patch.exe"'
-            Delete "$TEMP\tensorrt_patch.exe" # Clean up after execution
-            MessageBox MB_OK "CUDA + TensorRT patch installation complete."
+            ExecWait '"$TEMP\cuda_patch.exe"'
+            Delete "$TEMP\cuda_patch.exe" # Clean up after execution
+            StrCpy $7 "https://megascops.app/patches/Megascops-local-trt_patch.exe"
+            
+            # Download the TensorRT patch file
+            inetc::get /POPUP "Downloading TensorRT Patch" /CAPTION "Download Progress" "$7" "$TEMP\tensorrt_patch.exe" /END
+            Pop $8 # Get download status
+            
+            # Check if download was successful
+            ${If} $8 == "OK"
+              # Run the downloaded patch
+              ExecWait '"$TEMP\tensorrt_patch.exe"'
+              Delete "$TEMP\tensorrt_patch.exe"
+            ${Else}
+              MessageBox MB_OK "Failed to download TensorRT patch. Error: $8$\r$\nPlease try installing it manually later."
+            ${EndIf}
           ${Else}
-            MessageBox MB_OK "Failed to download CUDA + TensorRT patch. Error: $8$\r$\nPlease try installing it manually later."
+            MessageBox MB_OK "Failed to download CUDA patch. Error: $8$\r$\nPlease try installing it manually later."
           ${EndIf}
           Goto nvidia_patch_done
       ${Else}
@@ -100,11 +125,9 @@ FunctionEnd
         MessageBox MB_YESNO "NVIDIA GPU detected:$\r$\n$\r$\n$4$\r$\n$\r$\nWould you like to download and install the CUDA patch to enable GPU acceleration for this application?" IDYES download_cuda_patch IDNO skip_nvidia_patch
         
         download_cuda_patch:
-          # Show download progress dialog
-          MessageBox MB_OK "Downloading CUDA patch. Please wait..."
           
           # Define your patch download URL
-          StrCpy $7 "https://github.com/simulacraliasing/megascops-local/releases/download/patch/Megascops-local-cuda_patch.exe"
+          StrCpy $7 "https://megascops.app/patches/Megascops-local-cuda_patch.exe"
           
           # Download the patch file
           inetc::get /POPUP "Downloading CUDA Patch" /CAPTION "Download Progress" "$7" "$TEMP\cuda_patch.exe" /END
@@ -126,11 +149,9 @@ FunctionEnd
       MessageBox MB_YESNO "NVIDIA GPU detected:$\r$\n$\r$\n$4$\r$\n$\r$\nWould you like to download and install the CUDA patch to enable GPU acceleration for this application?" IDYES download_cuda_patch_fallback IDNO skip_nvidia_patch
       
       download_cuda_patch_fallback:
-        # Show download progress dialog
-        MessageBox MB_OK "Downloading CUDA patch. Please wait..."
         
         # Define your patch download URL
-        StrCpy $7 "https://github.com/simulacraliasing/megascops-local/releases/download/patch/Megascops-local-cuda_patch.exe"
+        StrCpy $7 "https://megascops.app/patches/Megascops-local-cuda_patch.exe"
         
         # Download the patch file
         inetc::get /POPUP "Downloading CUDA Patch" /CAPTION "Download Progress" "$7" "$TEMP\cuda_patch.exe" /END
@@ -209,11 +230,9 @@ FunctionEnd
       MessageBox MB_YESNO "Intel GPU detected:$\r$\n$\r$\n$8$\r$\n$\r$\nWould you like to download and install the OpenVINO patch to enable GPU acceleration for this application?" IDYES download_openvino IDNO skip_openvino
       
       download_openvino:
-        # Show download progress dialog
-        MessageBox MB_OK "Downloading OpenVINO patch. Please wait..."
         
         # Define your OpenVINO patch download URL
-        StrCpy $4 "https://github.com/simulacraliasing/megascops-local/releases/download/patch/Megascops-local-ov_patch.exe"
+        StrCpy $4 "https://megascops.app/patches/Megascops-local-ov_patch.exe"
         
         # Download the patch file
         inetc::get /POPUP "Downloading OpenVINO Patch" /CAPTION "Download Progress" "$4" "$TEMP\openvino_patch.exe" /END
