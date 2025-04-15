@@ -12,8 +12,8 @@ use crossbeam_channel::Sender;
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use ffmpeg_sidecar::command::FfmpegCommand;
 use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
-use ffmpeg_sidecar::iter::FfmpegIterator;
 use ffmpeg_sidecar::ffprobe::ffprobe_path;
+use ffmpeg_sidecar::iter::FfmpegIterator;
 use image::{DynamicImage, GenericImageView, ImageReader};
 use jpeg_decoder::Decoder;
 use log::{debug, error, warn};
@@ -246,7 +246,21 @@ pub fn process_video(
 ) -> Result<()> {
     let video_path = file.tmp_path.to_string_lossy();
 
-    let (orig_w, orig_h) = get_video_dimensions(&video_path)?;
+    let (orig_w, orig_h) = match get_video_dimensions(&video_path) {
+        Ok(dim) => dim,
+        Err(e) => {
+            let error = anyhow!(e).context("Failed to get video dimensions");
+            log::error!("{}", error);
+            let frame_data = ArrayItem::ErrFile(ErrFile {
+                file: file.clone(),
+                error,
+            });
+            array_q_s
+                .send(frame_data)
+                .context("Failed to send dimension error")?;
+            return Ok(());
+        }
+    };
 
     let input = create_ffmpeg_iter(&video_path, imgsz, iframe)?;
 

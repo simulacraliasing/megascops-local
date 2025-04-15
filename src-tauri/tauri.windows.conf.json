@@ -1,5 +1,11 @@
 {
   "identifier": "com.megascops-local.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "node scripts/patch-checker.js && node scripts/download-resources.js && pnpm build",
+    "frontendDist": "../build"
+  },
   "app": {
     "windows": [
       {
