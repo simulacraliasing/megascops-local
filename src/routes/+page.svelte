@@ -19,9 +19,11 @@
         type Device,
         devices,
         modelsLoading,
+        appVersion,
     } from "$lib/store.svelte";
     import { DetectPanel, ConfigPanel } from "$lib/components";
     import { startTour } from "$lib/tour";
+    import { getVersion } from "@tauri-apps/api/app";
 
     listen<Map<string, Device>>("devices", (event) => {
         let devies_value = event.payload;
@@ -54,6 +56,7 @@
     });
 
     onMount(async () => {
+        appVersion.value = await getVersion();
         await loadConfig();
         await listDevices();
         modelsLoading.value = true;

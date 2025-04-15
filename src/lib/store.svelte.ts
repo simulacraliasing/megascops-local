@@ -1,3 +1,5 @@
+export const appVersion = $state({ value: "" });
+
 export const dialogConfig = $state({
     isOpen: false,
     title: "",

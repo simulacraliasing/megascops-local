@@ -10,7 +10,7 @@
     import { _ } from "svelte-i18n";
     import ConfigSlider from "$lib/components/ConfigSlider.svelte";
     import { toggleConfig, selectBufferFolder } from "$lib/utils";
-    import { detectStatus, config } from "$lib/store.svelte";
+    import { detectStatus, config, appVersion } from "$lib/store.svelte";
     import TooltipWrapper from "$lib/components/TooltipWrapper.svelte";
 </script>
 
@@ -146,6 +146,12 @@
                 step={50}
                 bind:value={config.configOptions.checkPoint}
             />
+
+            <div class="col-span-full flex justify-end items-center gap-2 mt-2">
+                <span class="text-xs text-muted-foreground">
+                    v{appVersion.value}
+                </span>
+            </div>
         </div>
     </Card.Content>
 </Card.Root>
