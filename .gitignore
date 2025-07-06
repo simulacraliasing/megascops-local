@@ -16,3 +16,5 @@ src-tauri/lib/*
 scripts/python/*
 patch/**/*.dll
 patch/**/*.exe
+src-tauri/.cargo
+src-tauri/.cargo/*

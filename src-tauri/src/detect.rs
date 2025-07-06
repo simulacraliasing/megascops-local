@@ -7,7 +7,10 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use ndarray::{array, s, Array2, Array4, Axis};
-use ort::{inputs, ExecutionProviderDispatch, Session, SessionOutputs};
+use ort::execution_providers::coreml::CoreMLComputeUnits;
+use ort::execution_providers::ExecutionProviderDispatch;
+use ort::session::{Session, SessionOutputs};
+use ort::value::Tensor;
 
 use crate::export::ExportFrame;
 use crate::media::{ArrayItem, Frame};
@@ -38,36 +41,44 @@ pub fn detect_worker(
         match config.ep {
             Ep::CoreML => {
                 log::info!("Using CoreML EP");
-                ep = ort::CoreMLExecutionProvider::default()
-                    .with_ane_only()
-                    .with_subgraphs()
+                ep = ort::execution_providers::CoreMLExecutionProvider::default()
+                    .with_compute_units(CoreMLComputeUnits::CPUAndNeuralEngine)
+                    .with_subgraphs(true)
                     .build();
             }
             Ep::TensorRT => {
                 log::info!("Using TensorRT EP on device {}", config.device);
-                ep = ort::TensorRTExecutionProvider::default()
+                let mut min_shapes = format!(
+                    "images:1x3x{0}x{0}",
+                    config.target_size
+                );
+                let mut opt_shapes = format!(
+                    "images:2x3x{0}x{0}",
+                    config.target_size
+                );
+                let mut max_shapes = format!(
+                    "images:5x3x{0}x{0}",
+                    config.target_size
+                );
+                if config.model_name.contains("rtdetr") {
+                    min_shapes.push_str(",orig_target_sizes:1x2");
+                    opt_shapes.push_str(",orig_target_sizes:2x2");
+                    max_shapes.push_str(",orig_target_sizes:5x2");
+                }
+                ep = ort::execution_providers::TensorRTExecutionProvider::default()
                     .with_engine_cache(true)
                     .with_engine_cache_path(&model_dir)
                     .with_timing_cache(true)
                     .with_fp16(true)
-                    .with_profile_min_shapes(format!(
-                        "images:1x3x{}x{}",
-                        config.target_size, config.target_size
-                    ))
-                    .with_profile_opt_shapes(format!(
-                        "images:2x3x{}x{}",
-                        config.target_size, config.target_size
-                    ))
-                    .with_profile_max_shapes(format!(
-                        "images:5x3x{}x{}",
-                        config.target_size, config.target_size
-                    ))
+                    .with_profile_min_shapes(min_shapes)
+                    .with_profile_opt_shapes(opt_shapes)
+                    .with_profile_max_shapes(max_shapes)
                     .with_device_id(config.device.parse().unwrap_or(0))
                     .build();
             }
             Ep::CUDA => {
                 log::info!("Using CUDA EP on device {}", config.device);
-                ep = ort::CUDAExecutionProvider::default()
+                ep = ort::execution_providers::CUDAExecutionProvider::default()
                     .with_device_id(config.device.parse().unwrap_or(0))
                     .build();
             }
@@ -75,26 +86,26 @@ pub fn detect_worker(
                 let device_type = config.device.to_uppercase();
 
                 log::info!("Using OpenVINO EP with device type: {}", device_type);
-                ep = ort::OpenVINOExecutionProvider::default()
+                ep = ort::execution_providers::OpenVINOExecutionProvider::default()
                     .with_device_type(device_type)
                     .with_cache_dir(&model_dir)
                     .build();
             }
             Ep::DirectML => {
                 log::info!("Using DirectML EP on device {}", config.device);
-                ep = ort::DirectMLExecutionProvider::default()
+                ep = ort::execution_providers::DirectMLExecutionProvider::default()
                     .with_device_id(config.device.parse().unwrap_or(0))
                     .build();
             }
             Ep::Cpu => {
                 log::info!("Using CPU EP");
-                ep = ort::CPUExecutionProvider::default().build();
+                ep = ort::execution_providers::CPUExecutionProvider::default().build();
             }
         }
 
-        let session = load_model(&config.model_path, ep).unwrap();
+        let mut session = load_model(&config.model_path, ep).unwrap();
 
-        process_frames(array_q_recv, export_q_s, &session, &config).unwrap();
+        process_frames(array_q_recv, export_q_s, &mut session, &config).unwrap();
     })
 }
 
@@ -109,7 +120,7 @@ pub fn load_model(model_path: &Path, ep: ExecutionProviderDispatch) -> Result<Se
 pub fn process_frames(
     rx: Receiver<ArrayItem>,
     s: Sender<ExportFrame>,
-    model: &Session,
+    model: &mut Session,
     config: &DetectConfig,
 ) -> Result<()> {
     let mut frames: Vec<Frame> = Vec::new();
@@ -179,7 +190,7 @@ pub fn process_frames(
 
 pub fn process_batch(
     frames: &[Frame],
-    model: &Session,
+    model: &mut Session,
     config: &DetectConfig,
     export_q_s: &Sender<ExportFrame>,
 ) -> Result<()> {
@@ -199,13 +210,10 @@ pub fn process_batch(
         }
 
         outputs = model
-            .run(
-                inputs! {
-                    "images" => inputs.view(),
-                    "orig_target_sizes" => orig_target_sizes.view()
-                }
-                .unwrap(),
-            )
+            .run(ort::inputs! {
+                "images" => Tensor::from_array(inputs)?,
+                "orig_target_sizes" => Tensor::from_array(orig_target_sizes)?
+            })
             .unwrap();
     } else {
         for (i, frame) in frames.iter().enumerate() {
@@ -214,12 +222,12 @@ pub fn process_batch(
                 .assign(&frame.data);
         }
         outputs = model
-            .run(inputs!["images" => inputs.view()].unwrap())
+            .run(ort::inputs!["images" => Tensor::from_array(inputs)?])
             .unwrap();
     }
 
     let output = outputs["output0"]
-        .try_extract_tensor::<f32>()
+        .try_extract_array::<f32>()
         .unwrap()
         .t()
         .into_owned(); //[6, 102000, batch]

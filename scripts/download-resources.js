@@ -140,7 +140,7 @@ function getOrganizeInfo() {
 function getOrtInfo(targetTriple) {
     if (targetTriple == "x86_64-pc-windows-msvc") {
         return {
-            url: "https://github.com/simulacraliasing/md5rs/releases/download/ort-prebuilt/ort-prebuilt-windows-amd64.zip",
+            url: "https://github.com/simulacraliasing/ort-prebuilt/releases/download/v1.22.0/ort-prebuilt-windows-amd64.zip",
             outputPath: path.join(libDir, "ort-prebuilt-windows-amd64.zip"),
         };
     } else if (targetTriple == "x86_64-unknown-linux-gnu") {

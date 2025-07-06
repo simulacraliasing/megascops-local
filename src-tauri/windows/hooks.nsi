@@ -3,7 +3,7 @@
 !macro NSIS_HOOK_POSTINSTALL
   ReadEnvStr $UrlBase "MEGASCOPS_URL_BASE"
   ${If} $UrlBase == ""
-    StrCpy $UrlBase "https://megascops.app"
+    StrCpy $UrlBase "https://megascops-1319682640.cos.ap-hongkong.myqcloud.com"
   ${EndIf}
 
   ; Run patch checker executable
